@@ -24,6 +24,7 @@
 # Generated / cache
 /[Aa]ssets/AssetStoreTools*
 /[Aa]ssets/StreamingAssets/
+/[Aa]ssets/SoulGames/
 /.paket/
 /.cr/
 
