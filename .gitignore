@@ -1,0 +1,56 @@
+# Unity / Unreal style project ignore
+[Ll]ibrary/
+[Tt]emp/
+[Oo]bj/
+[Bb]uild/
+[Bb]uilds/
+[Ll]ogs/
+[Uu]ser[Ss]ettings/
+[Mm]emoryCaptures/
+
+# Visual Studio / Rider
+.vs/
+*.user
+*.userprefs
+*.csproj
+*.sln
+*.suo
+*.tmp
+*.pidb
+*.booproj
+*.svd
+.idea/
+
+# Generated / cache
+/[Aa]ssets/AssetStoreTools*
+/[Aa]ssets/StreamingAssets/
+/.paket/
+/.cr/
+
+# Platform-specific
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Build artifacts
+[Bb]uild*/
+[Pp]ublish*/
+
+# TextMesh Pro
+/[Aa]ssets/TextMesh Pro/Resources/
+
+# Addressables
+/[Aa]ssets/AddressableAssetsData/*
+
+# Rider
+.idea/
+*.sln.iml
+
+# JetBrains caches
+.fleet/
+
+# Other
+/.vsconfig
+/Packages/manifest.json.merge

@@ -1,0 +1,70 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 74a6179cf901b6643bb497f5c2347358, type: 3}
+  m_Name: Mistral_CoastalClass
+  m_EditorClassIdentifier: Assembly-CSharp::CruiseLineInc.Ship.Data.ShipClassData
+  _shipName: Mistral
+  _className: Coastal Cruiser
+  _shipId: mistral_coastal
+  _maxPassengers: 40
+  _maxCrew: 10
+  _totalTiles: 64
+  _waterCapacity: 150
+  _foodCapacity: 200
+  _wasteCapacity: 180
+  _fuelCapacity: 1000
+  _startingMoney: 5000
+  _startingWater: 150
+  _startingFood: 200
+  _startingFuel: 800
+  _deckConfigs:
+  - _deckLevel: 5
+    _deckTypeData: {fileID: 11400000, guid: e81f7a77302b1d64c998561ba1760538, type: 2}
+    _widthOverride: 0
+    _depthOverride: 0
+    _heightOverride: 0
+  - _deckLevel: 4
+    _deckTypeData: {fileID: 11400000, guid: 05595fc432627cf498e54c2e8eef55c9, type: 2}
+    _widthOverride: 0
+    _depthOverride: 0
+    _heightOverride: 0
+  - _deckLevel: 3
+    _deckTypeData: {fileID: 11400000, guid: bde778c6cdcadae4ab80f378021dcbb3, type: 2}
+    _widthOverride: 0
+    _depthOverride: 0
+    _heightOverride: 0
+  - _deckLevel: 2
+    _deckTypeData: {fileID: 11400000, guid: d4a00775df46bc747b82d6cba6973993, type: 2}
+    _widthOverride: 0
+    _depthOverride: 0
+    _heightOverride: 0
+  - _deckLevel: 1
+    _deckTypeData: {fileID: 11400000, guid: e3b0bf09aa49e644b8b7cb2c2c2fa61b, type: 2}
+    _widthOverride: 0
+    _depthOverride: 0
+    _heightOverride: 0
+  - _deckLevel: 0
+    _deckTypeData: {fileID: 11400000, guid: 94da44f05eebcc747ad84fc39e1976ba, type: 2}
+    _widthOverride: 0
+    _depthOverride: 0
+    _heightOverride: 0
+  _defaultRooms: []
+  _defaultVoyageDays: 2
+  _cruiseSpeed: 20
+  _dailyUpkeep: 1200
+  _standardTicketPrice: 120
+  _premiumTicketPrice: 300
+  _shipPrefab: {fileID: 0}
+  _shipIcon: {fileID: 0}
+  _description: The Mistral is a coastal cruise vessel, perfect for short voyages.
+    Your uncle's pride and joy, now passed down to you. A modest ship with 40 passenger
+    capacity, 6 decks, and basic amenities.

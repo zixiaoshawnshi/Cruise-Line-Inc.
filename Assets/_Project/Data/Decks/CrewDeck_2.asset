@@ -1,0 +1,24 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b714c3d7f6957fd468faf3f5abe7f5c3, type: 3}
+  m_Name: CrewDeck_2
+  m_EditorClassIdentifier: Assembly-CSharp::CruiseLineInc.Ship.Data.DeckTypeData
+  _deckName: CrewDeck_2
+  _deckType: 3
+  _defaultLevel: 1
+  _width: 10
+  _depth: 6
+  _deckHeight: 2
+  _tileSize: 1
+  _defaultTilePattern: 04000000040000000400000004000000040000000400000004000000040000000400000004000000
+  _defaultZoneTag: 5
+  _description: Crew quarters and facilities

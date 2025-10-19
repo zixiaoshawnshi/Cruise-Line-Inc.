@@ -1,0 +1,24 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 82e63f0f81255bf41ab1865f7f9a0bcb, type: 3}
+  m_Name: DefaultTileVisualData
+  m_EditorClassIdentifier: Assembly-CSharp::CruiseLineInc.Ship.Data.TileVisualData
+  _indoorTile: {fileID: 11400000, guid: 814ea6935341220449060d104f3bd054, type: 2}
+  _outdoorTile: {fileID: 11400000, guid: 33a3bb19f435fad408e69a2e6c6ed1a0, type: 2}
+  _entranceTile: {fileID: 11400000, guid: 667bdb930a1f62c44a22be6ab11e2e35, type: 2}
+  _corridorTile: {fileID: 11400000, guid: 5253f833d8a47a149a224363606ec603, type: 2}
+  _utilityTile: {fileID: 11400000, guid: 47cf8c118bb1a8f4b9d7da5ca11b18ac, type: 2}
+  _restrictedTile: {fileID: 11400000, guid: 59e557320f8ac4649ac9544749cb7a21, type: 2}
+  _specialTile: {fileID: 11400000, guid: 7721132af917c9a4db9748274bf8760b, type: 2}
+  _defaultTile: {fileID: 11400000, guid: 814ea6935341220449060d104f3bd054, type: 2}
+  _emptyBuildableTile: {fileID: 11400000, guid: 653102d4a3d9e384da775a1c088e66c2, type: 2}
+  _emptyNonBuildableTile: {fileID: 11400000, guid: 7640c408d51ef1748a92b08abf5aeee5, type: 2}

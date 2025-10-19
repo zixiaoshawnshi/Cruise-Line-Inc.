@@ -1,0 +1,174 @@
+using UnityEngine;
+
+namespace CruiseLineInc.Ship
+{
+    /// <summary>
+    /// Represents a single tile on a deck in 2D cross-section view.
+    /// Tiles compose decks, which compose ships.
+    /// Position is (xPosition, deckLevel) for side-view rendering.
+    /// </summary>
+    [System.Serializable]
+    public class Tile
+    {
+        // Position (2D Cross-Section)
+        [SerializeField] private int _xPosition;      // Horizontal position (left to right)
+        [SerializeField] private int _deckLevel;      // Vertical position (deck number)
+        
+        // Type & Properties
+        [SerializeField] private DeckType _deckType;  // Which deck this tile belongs to
+        [SerializeField] private TileType _tileType;  // Specific tile type (Indoor/Outdoor/etc)
+        [SerializeField] private bool _isBuildable;
+        [SerializeField] private bool _isEntrance;
+        
+        // Access Control
+        [SerializeField] private ZoneTag _zoneTag;
+        
+        // Occupancy
+        [SerializeField] private bool _isOccupied;
+        [SerializeField] private string _occupiedByRoomId; // null if empty
+        
+        // Multi-Deck Support
+        [SerializeField] private bool _isMultiDeckTile;    // Part of a room spanning multiple decks?
+        [SerializeField] private int _multiDeckRootLevel;  // If multi-deck, which deck is the "anchor"?
+        
+        // Navigation
+        [SerializeField] private bool _isNavigable; // Can agents walk here?
+        
+        #region Properties
+        
+        public int XPosition => _xPosition;
+        public int DeckLevel => _deckLevel;
+        public DeckType DeckType => _deckType;
+        public TileType TileType => _tileType;
+        public bool IsBuildable => _isBuildable;
+        public bool IsEntrance => _isEntrance;
+        public ZoneTag ZoneTag => _zoneTag;
+        public bool IsOccupied => _isOccupied;
+        public string OccupiedByRoomId => _occupiedByRoomId;
+        public bool IsNavigable => _isNavigable;
+        public bool IsMultiDeckTile => _isMultiDeckTile;
+        public int MultiDeckRootLevel => _multiDeckRootLevel;
+        
+        #endregion
+        
+        #region Constructor
+        
+        public Tile(int xPosition, int deckLevel, DeckType deckType, TileType tileType = TileType.Indoor, bool isBuildable = true)
+        {
+            _xPosition = xPosition;
+            _deckLevel = deckLevel;
+            _deckType = deckType;
+            _tileType = tileType;
+            _isBuildable = isBuildable;
+            _isEntrance = false;
+            _zoneTag = ZoneTag.Public;
+            _isOccupied = false;
+            _occupiedByRoomId = null;
+            _isNavigable = true;
+            _isMultiDeckTile = false;
+            _multiDeckRootLevel = deckLevel;
+        }
+        
+        #endregion
+        
+        #region Public Methods
+        
+        /// <summary>
+        /// Marks this tile as occupied by a room
+        /// </summary>
+        public void SetOccupied(string roomId, bool isMultiDeck = false, int rootDeckLevel = -1)
+        {
+            _isOccupied = true;
+            _occupiedByRoomId = roomId;
+            _isMultiDeckTile = isMultiDeck;
+            _multiDeckRootLevel = rootDeckLevel >= 0 ? rootDeckLevel : _deckLevel;
+        }
+        
+        /// <summary>
+        /// Clears the occupation of this tile
+        /// </summary>
+        public void ClearOccupied()
+        {
+            _isOccupied = false;
+            _occupiedByRoomId = null;
+            _isMultiDeckTile = false;
+            _multiDeckRootLevel = _deckLevel;
+        }
+        
+        /// <summary>
+        /// Sets whether this tile is an entrance
+        /// </summary>
+        public void SetEntrance(bool isEntrance)
+        {
+            _isEntrance = isEntrance;
+        }
+        
+        /// <summary>
+        /// Sets the zone tag for access control
+        /// </summary>
+        public void SetZoneTag(ZoneTag zoneTag)
+        {
+            _zoneTag = zoneTag;
+        }
+        
+        /// <summary>
+        /// Sets whether this tile is navigable by agents
+        /// </summary>
+        public void SetNavigable(bool isNavigable)
+        {
+            _isNavigable = isNavigable;
+        }
+        
+        /// <summary>
+        /// Sets the tile type (Indoor/Outdoor/etc)
+        /// </summary>
+        public void SetTileType(TileType tileType)
+        {
+            _tileType = tileType;
+        }
+        
+        /// <summary>
+        /// Checks if this tile can be built on (not occupied, buildable)
+        /// </summary>
+        public bool CanBuild()
+        {
+            return _isBuildable && !_isOccupied;
+        }
+        
+        /// <summary>
+        /// Gets world position for this tile in 2D cross-section space
+        /// </summary>
+        public Vector2 GetWorldPosition2D(float tileSize = 1f)
+        {
+            return new Vector2(
+                _xPosition * tileSize,
+                _deckLevel * tileSize
+            );
+        }
+        
+        /// <summary>
+        /// Gets world position as Vector3 (for compatibility with 3D systems, but Z=0)
+        /// </summary>
+        public Vector3 GetWorldPosition3D(float tileSize = 1f)
+        {
+            return new Vector3(
+                _xPosition * tileSize,
+                _deckLevel * tileSize,
+                0f
+            );
+        }
+        
+        #endregion
+        
+        #region Debug
+        
+        public override string ToString()
+        {
+            return $"Tile X:{_xPosition} Deck:{_deckLevel} DeckType:{_deckType} TileType:{_tileType} " +
+                   $"Occupied:{_isOccupied} Room:{_occupiedByRoomId ?? "none"}" +
+                   (_isMultiDeckTile ? $" (Multi-deck from Deck {_multiDeckRootLevel})" : "");
+        }
+        
+        #endregion
+    }
+}

@@ -1,0 +1,33 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 377b51d5ea8942a45b677eaeacb4485e, type: 3}
+  m_Name: Statament_Standard
+  m_EditorClassIdentifier: Assembly-CSharp::CruiseLineInc.Room.Data.RoomDefinition
+  _roomId: stateroom_standard
+  _displayName: Standard Stateroom
+  _description: Comfortable cabin with twin beds and ensuite bathroom.
+  _roomSprite: {fileID: 21300000, guid: 553c5dff01a33c54fbcb5d452e05c1c1, type: 3}
+  _tintColor: {r: 1, g: 1, b: 1, a: 0}
+  _width: 2
+  _height: 1
+  _allowedTileTypes: 00000000
+  _allowedDeckTypes: 01000000
+  _buildCost: 500
+  _maintenanceCost: 10
+  _refundPercentage: 1
+  _waterConsumption: 5
+  _foodConsumption: 0
+  _powerConsumption: 2
+  _wasteProduction: 3
+  _noiseLevel: 0.1
+  _comfortRating: 0.5
+  _capacity: 4

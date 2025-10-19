@@ -1,0 +1,548 @@
+using System.Collections.Generic;
+using UnityEngine;
+using UnityEngine.Tilemaps;
+using CruiseLineInc.Ship.Data;
+
+namespace CruiseLineInc.Ship
+{
+    /// <summary>
+    /// Represents a single deck on a ship in 2D cross-section view.
+    /// Contains a 1D horizontal array of tiles for side-view rendering.
+    /// </summary>
+    public class Deck : MonoBehaviour
+    {
+        [Header("Deck Configuration")]
+        [SerializeField] private int _deckLevel;
+        [SerializeField] private DeckType _deckType;
+        [SerializeField] private int _width;          // Horizontal width only
+        [SerializeField] private float _tileSize = 1f;
+        
+        [Header("Visual")]
+        [SerializeField] private Transform _tileContainer;
+        [SerializeField] private Tilemap _tilemap;
+        [SerializeField] private Grid _grid;
+        [SerializeField] private TileVisualData _tileVisualData;
+        
+        // Grid Data (1D horizontal array)
+        private Tile[] _tiles;
+        private Dictionary<int, Tile> _tileDict;
+        
+        // Navigation (will be expanded in Navigation system)
+        private List<int> _entrancePositions;         // X positions only
+        private List<int> _elevatorPositions;
+        private List<int> _stairPositions;
+        
+        #region Properties
+        
+        public int DeckLevel => _deckLevel;
+        public DeckType DeckType => _deckType;
+        public int Width => _width;
+        public float TileSize => _tileSize;
+        public Tile[] Tiles => _tiles;
+        public int TileCount => _tiles?.Length ?? 0;
+        public Tilemap Tilemap => _tilemap;
+        public Grid Grid => _grid;
+        public TileVisualData TileVisualData => _tileVisualData;
+        
+        #endregion
+        
+        #region Initialization
+        
+        /// <summary>
+        /// Initialize the deck with given parameters (2D cross-section)
+        /// </summary>
+        public void Initialize(int deckLevel, DeckType deckType, int width, float tileSize = 1f, TileVisualData visualData = null)
+        {
+            _deckLevel = deckLevel;
+            _deckType = deckType;
+            _width = width;
+            _tileSize = tileSize;
+            _tileVisualData = visualData;
+            
+            _entrancePositions = new List<int>();
+            _elevatorPositions = new List<int>();
+            _stairPositions = new List<int>();
+            
+            // Setup Tilemap components if not already assigned
+            SetupTilemapComponents();
+            
+            CreateTileGrid();
+            
+            // Paint initial tilemap
+            if (_tilemap != null && _tileVisualData != null)
+            {
+                RefreshTilemap();
+                Debug.Log($"✅ Deck {_deckLevel} initialized with {_width} tiles and tile visuals applied");
+            }
+            else if (_tileVisualData == null)
+            {
+                Debug.LogWarning($"⚠️ Deck {_deckLevel} initialized WITHOUT tile visuals (TileVisualData is null)");
+            }
+            else if (_tilemap == null)
+            {
+                Debug.LogWarning($"⚠️ Deck {_deckLevel} initialized but Tilemap component is null");
+            }
+        }
+        
+        /// <summary>
+        /// Creates the 1D horizontal tile array for this deck
+        /// </summary>
+        private void CreateTileGrid()
+        {
+            _tiles = new Tile[_width];
+            _tileDict = new Dictionary<int, Tile>();
+            
+            for (int x = 0; x < _width; x++)
+            {
+                // Default to Indoor tile type
+                TileType tileType = TileType.Indoor;
+                
+                // Use tile pattern from DeckTypeData if available
+                // Note: This will be set when loading from ShipClassData in future updates
+                
+                Tile tile = new Tile(x, _deckLevel, _deckType, tileType, isBuildable: true);
+                
+                _tiles[x] = tile;
+                _tileDict[x] = tile;
+            }
+            
+            Debug.Log($"Deck {_deckLevel} ({_deckType}): Created {_width} tiles horizontally");
+        }
+        
+        /// <summary>
+        /// Applies a tile pattern from DeckTypeData to this deck
+        /// </summary>
+        /// <param name="deckTypeData">Deck type data with tile pattern</param>
+        public void ApplyTilePattern(DeckTypeData deckTypeData)
+        {
+            if (deckTypeData == null || _tiles == null)
+                return;
+            
+            for (int x = 0; x < _width; x++)
+            {
+                TileType tileType = deckTypeData.GetTileTypeForPosition(x);
+                _tiles[x].SetTileType(tileType);
+                
+                // Update tilemap if available
+                if (_tilemap != null && _tileVisualData != null)
+                {
+                    PaintTile(x);
+                }
+            }
+            
+            Debug.Log($"Deck {_deckLevel}: Applied tile pattern from {deckTypeData.DeckName}");
+        }
+        
+        #endregion
+        
+        #region Tile Access
+        
+        /// <summary>
+        /// Gets a tile at the given X position
+        /// </summary>
+        public Tile GetTile(int xPosition)
+        {
+            if (IsValidPosition(xPosition))
+            {
+                return _tiles[xPosition];
+            }
+            return null;
+        }
+        
+        /// <summary>
+        /// Checks if an X position is valid on this deck
+        /// </summary>
+        public bool IsValidPosition(int xPosition)
+        {
+            return xPosition >= 0 && xPosition < _width;
+        }
+        
+        /// <summary>
+        /// Gets all tiles on this deck
+        /// </summary>
+        public List<Tile> GetAllTiles()
+        {
+            List<Tile> allTiles = new List<Tile>();
+            foreach (Tile tile in _tiles)
+            {
+                allTiles.Add(tile);
+            }
+            return allTiles;
+        }
+        
+        /// <summary>
+        /// Gets all buildable tiles on this deck
+        /// </summary>
+        public List<Tile> GetBuildableTiles()
+        {
+            List<Tile> buildableTiles = new List<Tile>();
+            foreach (Tile tile in _tiles)
+            {
+                if (tile.CanBuild())
+                {
+                    buildableTiles.Add(tile);
+                }
+            }
+            return buildableTiles;
+        }
+        
+        #endregion
+        
+        #region Room Placement
+        
+        /// <summary>
+        /// Checks if a room of given width can be placed at X position (single deck)
+        /// </summary>
+        /// <param name="xPosition">Starting X position</param>
+        /// <param name="roomWidth">Width of the room in tiles</param>
+        /// <param name="requiredTileTypes">Optional: Required tile types for this room (null = any type allowed)</param>
+        /// <returns>True if room can be placed</returns>
+        public bool CanPlaceRoom(int xPosition, int roomWidth, TileType[] requiredTileTypes = null)
+        {
+            // Check all tiles the room would occupy horizontally
+            for (int x = 0; x < roomWidth; x++)
+            {
+                int checkPos = xPosition + x;
+                
+                if (!IsValidPosition(checkPos))
+                    return false;
+                
+                Tile tile = GetTile(checkPos);
+                if (tile == null || !tile.CanBuild())
+                    return false;
+                
+                // Validate tile type if requirements are specified
+                if (requiredTileTypes != null && requiredTileTypes.Length > 0)
+                {
+                    bool typeMatches = false;
+                    foreach (TileType requiredType in requiredTileTypes)
+                    {
+                        if (tile.TileType == requiredType)
+                        {
+                            typeMatches = true;
+                            break;
+                        }
+                    }
+                    
+                    if (!typeMatches)
+                        return false;
+                }
+            }
+            
+            return true;
+        }
+        
+        /// <summary>
+        /// Occupies tiles for a room on this deck
+        /// </summary>
+        public void OccupyTiles(int xPosition, int roomWidth, string roomId, bool isMultiDeck = false, int rootDeckLevel = -1)
+        {
+            for (int x = 0; x < roomWidth; x++)
+            {
+                int tilePos = xPosition + x;
+                Tile tile = GetTile(tilePos);
+                tile?.SetOccupied(roomId, isMultiDeck, rootDeckLevel >= 0 ? rootDeckLevel : _deckLevel);
+                
+                // Refresh tilemap for this tile
+                if (_tilemap != null && _tileVisualData != null)
+                {
+                    PaintTile(tilePos);
+                }
+            }
+        }
+        
+        /// <summary>
+        /// Clears tiles previously occupied by a room
+        /// </summary>
+        public void ClearTiles(int xPosition, int roomWidth)
+        {
+            for (int x = 0; x < roomWidth; x++)
+            {
+                int tilePos = xPosition + x;
+                Tile tile = GetTile(tilePos);
+                tile?.ClearOccupied();
+                
+                // Refresh tilemap for this tile
+                if (_tilemap != null && _tileVisualData != null)
+                {
+                    PaintTile(tilePos);
+                }
+            }
+        }
+        
+        #endregion
+        
+        #region Special Tiles
+        
+        /// <summary>
+        /// Registers an entrance tile at X position
+        /// </summary>
+        public void RegisterEntrance(int xPosition)
+        {
+            if (!_entrancePositions.Contains(xPosition))
+            {
+                _entrancePositions.Add(xPosition);
+                GetTile(xPosition)?.SetEntrance(true);
+            }
+        }
+        
+        /// <summary>
+        /// Registers an elevator at X position
+        /// </summary>
+        public void RegisterElevator(int xPosition)
+        {
+            if (!_elevatorPositions.Contains(xPosition))
+            {
+                _elevatorPositions.Add(xPosition);
+            }
+        }
+        
+        /// <summary>
+        /// Registers a stair at X position
+        /// </summary>
+        public void RegisterStair(int xPosition)
+        {
+            if (!_stairPositions.Contains(xPosition))
+            {
+                _stairPositions.Add(xPosition);
+            }
+        }
+        
+        public List<int> GetEntrances() => new List<int>(_entrancePositions);
+        public List<int> GetElevators() => new List<int>(_elevatorPositions);
+        public List<int> GetStairs() => new List<int>(_stairPositions);
+        
+        #endregion
+        
+        #region World Conversion (2D Cross-Section)
+        
+        /// <summary>
+        /// Converts X position to world position (2D)
+        /// Uses transform.position.y for vertical offset (adjacent deck stacking)
+        /// </summary>
+        public Vector2 XToWorld2D(int xPosition)
+        {
+            return new Vector2(
+                xPosition * _tileSize + transform.position.x,
+                transform.position.y  // Use actual transform Y, not deckLevel calculation
+            );
+        }
+        
+        /// <summary>
+        /// Converts X position to world position (3D for compatibility, Z=0)
+        /// </summary>
+        public Vector3 XToWorld3D(int xPosition)
+        {
+            return new Vector3(
+                xPosition * _tileSize + transform.position.x,
+                transform.position.y,  // Use actual transform Y
+                0f
+            );
+        }
+        
+        /// <summary>
+        /// Converts world position to X tile position
+        /// </summary>
+        public int WorldToX(Vector2 worldPosition)
+        {
+            float localX = worldPosition.x - transform.position.x;
+            return Mathf.FloorToInt(localX / _tileSize);
+        }
+        
+        /// <summary>
+        /// Converts world position to X tile position (from Vector3)
+        /// </summary>
+        public int WorldToX(Vector3 worldPosition)
+        {
+            return WorldToX(new Vector2(worldPosition.x, worldPosition.y));
+        }
+        
+        #endregion
+        
+        #region Tilemap Integration
+        
+        /// <summary>
+        /// Sets up Tilemap and Grid components if not already assigned
+        /// </summary>
+        private void SetupTilemapComponents()
+        {
+            // Find or create Grid component
+            if (_grid == null)
+            {
+                _grid = GetComponentInChildren<Grid>();
+                if (_grid == null)
+                {
+                    GameObject gridObj = new GameObject("Grid");
+                    gridObj.transform.SetParent(transform);
+                    gridObj.transform.localPosition = Vector3.zero;
+                    _grid = gridObj.AddComponent<Grid>();
+                    _grid.cellSize = new Vector3(_tileSize, _tileSize, 0);
+                }
+            }
+            
+            // Find or create Tilemap component
+            if (_tilemap == null)
+            {
+                _tilemap = GetComponentInChildren<Tilemap>();
+                if (_tilemap == null && _grid != null)
+                {
+                    GameObject tilemapObj = new GameObject($"Tilemap_Deck{_deckLevel}");
+                    tilemapObj.transform.SetParent(_grid.transform);
+                    tilemapObj.transform.localPosition = Vector3.zero;
+                    _tilemap = tilemapObj.AddComponent<Tilemap>();
+                    
+                    // Add TilemapRenderer for visualization
+                    TilemapRenderer renderer = tilemapObj.AddComponent<TilemapRenderer>();
+                    renderer.sortingOrder = _deckLevel;  // Stack decks correctly
+                }
+            }
+        }
+        
+        /// <summary>
+        /// Sets the visual tile type for a specific tile position
+        /// </summary>
+        /// <param name="xPosition">Horizontal position on deck</param>
+        /// <param name="tileType">Type of tile to paint</param>
+        public void SetTileVisual(int xPosition, TileType tileType)
+        {
+            if (!IsValidPosition(xPosition) || _tilemap == null || _tileVisualData == null)
+                return;
+            
+            Tile tile = GetTile(xPosition);
+            if (tile == null)
+                return;
+            
+            // Update tile data
+            tile.SetTileType(tileType);
+            
+            // Paint tilemap
+            Vector3Int tilemapPos = new Vector3Int(xPosition, _deckLevel, 0);
+            TileBase tileBase = _tileVisualData.GetTileBaseForType(tileType);
+            _tilemap.SetTile(tilemapPos, tileBase);
+        }
+        
+        /// <summary>
+        /// Paints a tile based on its current state (occupied vs empty)
+        /// </summary>
+        /// <param name="xPosition">Horizontal position on deck</param>
+        public void PaintTile(int xPosition)
+        {
+            if (!IsValidPosition(xPosition) || _tilemap == null || _tileVisualData == null)
+                return;
+            
+            Tile tile = GetTile(xPosition);
+            if (tile == null)
+                return;
+            
+            Vector3Int tilemapPos = new Vector3Int(xPosition, _deckLevel, 0);
+            TileBase tileBase;
+            
+            if (tile.IsOccupied)
+            {
+                // Show tile's type when occupied by a room
+                tileBase = _tileVisualData.GetTileBaseForType(tile.TileType);
+            }
+            else
+            {
+                // Show empty tile (buildable or not)
+                tileBase = _tileVisualData.GetEmptyTile(tile.CanBuild());
+            }
+            
+            _tilemap.SetTile(tilemapPos, tileBase);
+        }
+        
+        /// <summary>
+        /// Refreshes the entire tilemap to reflect current tile states
+        /// </summary>
+        public void RefreshTilemap()
+        {
+            if (_tilemap == null)
+            {
+                Debug.LogWarning($"Deck {_deckLevel}: Cannot refresh tilemap - Tilemap is null");
+                return;
+            }
+            
+            if (_tileVisualData == null)
+            {
+                Debug.LogWarning($"Deck {_deckLevel}: Cannot refresh tilemap - TileVisualData is null");
+                return;
+            }
+            
+            if (_tiles == null)
+            {
+                Debug.LogWarning($"Deck {_deckLevel}: Cannot refresh tilemap - Tiles array is null");
+                return;
+            }
+            
+            _tilemap.ClearAllTiles();
+            
+            for (int x = 0; x < _width; x++)
+            {
+                PaintTile(x);
+            }
+            
+            Debug.Log($"🎨 Deck {_deckLevel}: Refreshed {_width} tiles on tilemap");
+        }
+        
+        /// <summary>
+        /// Sets the tile visual data for this deck
+        /// </summary>
+        /// <param name="visualData">TileVisualData ScriptableObject</param>
+        public void SetTileVisualData(TileVisualData visualData)
+        {
+            _tileVisualData = visualData;
+            RefreshTilemap();
+        }
+        
+        #endregion
+        
+        #region Debug (2D Cross-Section Gizmos)
+        
+        private void OnDrawGizmos()
+        {
+            if (_tiles == null) return;
+            
+            // Draw horizontal grid lines (2D cross-section)
+            Gizmos.color = new Color(0.5f, 0.5f, 0.5f, 0.5f);
+            
+            // Vertical tile separators
+            for (int x = 0; x <= _width; x++)
+            {
+                Vector3 bottom = XToWorld3D(x);
+                Vector3 top = bottom + new Vector3(0, _tileSize, 0);
+                Gizmos.DrawLine(bottom, top);
+            }
+            
+            // Deck floor line
+            Vector3 deckStart = XToWorld3D(0);
+            Vector3 deckEnd = XToWorld3D(_width);
+            Gizmos.DrawLine(deckStart, deckEnd);
+            
+            // Deck ceiling line
+            Vector3 ceilingStart = deckStart + new Vector3(0, _tileSize, 0);
+            Vector3 ceilingEnd = deckEnd + new Vector3(0, _tileSize, 0);
+            Gizmos.DrawLine(ceilingStart, ceilingEnd);
+            
+            // Draw occupied tiles
+            Gizmos.color = new Color(1f, 0.3f, 0.3f, 0.6f);
+            foreach (Tile tile in _tiles)
+            {
+                if (tile.IsOccupied)
+                {
+                    Vector3 center = XToWorld3D(tile.XPosition) + new Vector3(_tileSize * 0.5f, _tileSize * 0.5f, 0);
+                    Gizmos.DrawCube(center, new Vector3(_tileSize * 0.9f, _tileSize * 0.9f, 0.1f));
+                    
+                    // If it's a multi-deck tile, show it differently
+                    if (tile.IsMultiDeckTile)
+                    {
+                        Gizmos.color = new Color(0.3f, 0.3f, 1f, 0.6f);
+                        Gizmos.DrawWireCube(center, new Vector3(_tileSize * 0.95f, _tileSize * 0.95f, 0.1f));
+                        Gizmos.color = new Color(1f, 0.3f, 0.3f, 0.6f);
+                    }
+                }
+            }
+        }
+        
+        #endregion
+    }
+}

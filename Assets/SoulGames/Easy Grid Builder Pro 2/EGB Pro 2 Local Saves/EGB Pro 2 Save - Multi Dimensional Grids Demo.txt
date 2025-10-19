@@ -1,0 +1,45 @@
+{
+    "gridSystemsSaveData": {
+        "gridSaveDataList": [
+            {
+                "gridUniqueID": "68bdd250-26a4-4df4-861d-59440c0815e4",
+                "gridPosition": {
+                    "x": 0.0,
+                    "y": 0.0,
+                    "z": 0.0
+                },
+                "gridWidth": 10,
+                "gridLength": 10,
+                "cellSize": 2.0,
+                "updateGridPositionRuntime": false,
+                "updateGridWidthAndLengthRuntime": false,
+                "gridOriginType": 0,
+                "buildableGridObjectSOList": [],
+                "buildableEdgeObjectSOList": [],
+                "buildableCornerObjectSOList": [],
+                "buildableFreeObjectSOList": []
+            },
+            {
+                "gridUniqueID": "756c39f3-2c0a-46bf-8580-b789e4af82f2",
+                "gridPosition": {
+                    "x": 0.0,
+                    "y": 10.0,
+                    "z": 10.0
+                },
+                "gridWidth": 10,
+                "gridLength": 10,
+                "cellSize": 2.0,
+                "updateGridPositionRuntime": false,
+                "updateGridWidthAndLengthRuntime": false,
+                "gridOriginType": 0,
+                "buildableGridObjectSOList": [],
+                "buildableEdgeObjectSOList": [],
+                "buildableCornerObjectSOList": [],
+                "buildableFreeObjectSOList": []
+            }
+        ]
+    },
+    "buildableObjectsSaveData": {
+        "builtObjectSaveDataList": []
+    }
+}

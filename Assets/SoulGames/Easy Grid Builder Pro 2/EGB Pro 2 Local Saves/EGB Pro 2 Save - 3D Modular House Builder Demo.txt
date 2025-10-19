@@ -1,0 +1,67 @@
+{
+    "gridSystemsSaveData": {
+        "gridSaveDataList": [
+            {
+                "gridUniqueID": "e019d6df-57c5-4ea4-a04b-e4a38d0c09bb",
+                "gridPosition": {
+                    "x": 0.0,
+                    "y": 0.0,
+                    "z": 0.0
+                },
+                "gridWidth": 20,
+                "gridLength": 20,
+                "cellSize": 2.0,
+                "updateGridPositionRuntime": false,
+                "updateGridWidthAndLengthRuntime": false,
+                "gridOriginType": 0,
+                "buildableGridObjectSOList": [
+                    {
+                        "instanceID": 48976
+                    },
+                    {
+                        "instanceID": 49062
+                    },
+                    {
+                        "instanceID": 48668
+                    }
+                ],
+                "buildableEdgeObjectSOList": [
+                    {
+                        "instanceID": 49598
+                    },
+                    {
+                        "instanceID": 49066
+                    }
+                ],
+                "buildableCornerObjectSOList": [
+                    {
+                        "instanceID": 48916
+                    }
+                ],
+                "buildableFreeObjectSOList": [
+                    {
+                        "instanceID": 49868
+                    },
+                    {
+                        "instanceID": 49364
+                    },
+                    {
+                        "instanceID": 49894
+                    },
+                    {
+                        "instanceID": 49594
+                    },
+                    {
+                        "instanceID": 48908
+                    },
+                    {
+                        "instanceID": 48770
+                    }
+                ]
+            }
+        ]
+    },
+    "buildableObjectsSaveData": {
+        "builtObjectSaveDataList": []
+    }
+}
