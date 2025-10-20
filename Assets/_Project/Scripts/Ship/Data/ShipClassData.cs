@@ -294,9 +294,11 @@ namespace CruiseLineInc.Ship.Data
 
             // Place default rooms (Bridge, Engine Room, etc.)
             PlaceDefaultRooms(shipData);
-            
+
             Debug.Log($"Created ShipData '{shipData.ShipName}': {shipData.Decks.Length} decks, {shipData.TotalTiles} tiles, {_defaultRooms.Count} default rooms");
-            
+
+            shipData.LogVerticalConnectorStacks();
+
             return shipData;
         }
         
@@ -347,27 +349,37 @@ namespace CruiseLineInc.Ship.Data
 
                     if (previousSlice != null)
                     {
-                        DeckLink upwardLink = new DeckLink
-                        {
-                            TargetDeck = previousSlice.Deck,
-                            TraversalCost = defaultZone.VerticalTraversalCost > 0f ? defaultZone.VerticalTraversalCost : 1f,
-                            Capacity = defaultZone.VerticalCapacity > 0 ? defaultZone.VerticalCapacity : 1
-                        };
-
-                        DeckLink downwardLink = new DeckLink
-                        {
-                            TargetDeck = zone.Deck,
-                            TraversalCost = defaultZone.VerticalTraversalCost > 0f ? defaultZone.VerticalTraversalCost : 1f,
-                            Capacity = defaultZone.VerticalCapacity > 0 ? defaultZone.VerticalCapacity : 1
-                        };
-
-                        zone.DeckLinks.Add(upwardLink);
-                        previousSlice.DeckLinks.Add(downwardLink);
+                        LinkVerticalSlices(shipData, previousSlice, zone, defaultZone.VerticalTraversalCost, defaultZone.VerticalCapacity);
                     }
 
                     previousSlice = zone;
                 }
             }
+        }
+
+        private static void LinkVerticalSlices(ShipData shipData, ZoneData lowerSlice, ZoneData upperSlice, float traversalCost, int capacity)
+        {
+            float resolvedCost = traversalCost > 0f ? traversalCost : 1f;
+            int resolvedCapacity = capacity > 0 ? capacity : 1;
+
+            DeckLink lowerToUpper = new DeckLink
+            {
+                TargetDeck = upperSlice.Deck,
+                TraversalCost = resolvedCost,
+                Capacity = resolvedCapacity
+            };
+
+            DeckLink upperToLower = new DeckLink
+            {
+                TargetDeck = lowerSlice.Deck,
+                TraversalCost = resolvedCost,
+                Capacity = resolvedCapacity
+            };
+
+            lowerSlice.DeckLinks.Add(lowerToUpper);
+            upperSlice.DeckLinks.Add(upperToLower);
+
+            shipData.ZoneGraph.AddEdge(lowerSlice.Id, upperSlice.Id);
         }
         
         /// <summary>
@@ -412,6 +424,5 @@ namespace CruiseLineInc.Ship.Data
         }
     }
 }
-
 
 
