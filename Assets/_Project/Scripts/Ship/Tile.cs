@@ -1,4 +1,5 @@
 using System;
+using CruiseLineInc.Ship.Data;
 
 namespace CruiseLineInc.Ship
 {
@@ -32,7 +33,7 @@ namespace CruiseLineInc.Ship
         #region Occupancy
         
         public bool IsOccupied;
-        public string RoomId;  // null if empty
+        public RoomId RoomId;
         
         #endregion
         
@@ -52,7 +53,7 @@ namespace CruiseLineInc.Ship
         
         #region Access Control
         
-        public ZoneTag ZoneTag;
+        public AccessTag AccessTag;
         
         #endregion
         
@@ -70,12 +71,12 @@ namespace CruiseLineInc.Ship
             IsSelected = false;
             IsHighlighted = false;
             IsOccupied = false;
-            RoomId = null;
+            RoomId = RoomId.Invalid;
             IsMultiLevelTile = false;
             RootDeckLevel = deckLevel;
             LayerOffset = 0;
             IsNavigable = true;
-            ZoneTag = ZoneTag.Public;
+            AccessTag = AccessTag.Public;
         }
         
         #endregion
@@ -108,7 +109,7 @@ namespace CruiseLineInc.Ship
         {
             string pos = $"({XPosition}, {ZPosition})";
             string type = $"{DeckType}/{TileType}";
-            string status = IsOccupied ? $"Occupied:{RoomId}" : "Empty";
+            string status = IsOccupied ? $"Occupied:{RoomId.Value}" : "Empty";
             string nav = IsNavigable ? "Nav" : "NoNav";
             
             if (IsMultiLevelTile)

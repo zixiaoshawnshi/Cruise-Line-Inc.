@@ -78,7 +78,7 @@ namespace CruiseLineInc.Editor
                 5,
                 6,  // 6 tiles wide
                 false, false, false, false,
-                ZoneTag.Restricted,
+                AccessTag.Restricted,
                 "Command deck with bridge and captain's quarters"
             );
             AssetDatabase.CreateAsset(bridgeDeck, decksPath + "BridgeDeck.asset");
@@ -89,7 +89,7 @@ namespace CruiseLineInc.Editor
                 4,
                 14,  // 14 tiles wide
                 true, false, false, false,
-                ZoneTag.Public,
+                AccessTag.Public,
                 "Passenger cabins and staterooms"
             );
             AssetDatabase.CreateAsset(mainDeckA, decksPath + "MainDeck_A.asset");
@@ -100,7 +100,7 @@ namespace CruiseLineInc.Editor
                 3,
                 14,  // 14 tiles wide
                 true, false, false, false,
-                ZoneTag.Public,
+                AccessTag.Public,
                 "Additional passenger accommodations"
             );
             AssetDatabase.CreateAsset(mainDeckB, decksPath + "MainDeck_B.asset");
@@ -111,7 +111,7 @@ namespace CruiseLineInc.Editor
                 2,
                 14,  // 14 tiles wide
                 true, false, false, true,
-                ZoneTag.Public,
+                AccessTag.Public,
                 "Public areas, entrances, dining and entertainment"
             );
             AssetDatabase.CreateAsset(promenadeDeck, decksPath + "PromenadeDeck.asset");
@@ -122,7 +122,7 @@ namespace CruiseLineInc.Editor
                 1,
                 10,  // 10 tiles wide
                 false, true, false, false,
-                ZoneTag.Staff,
+                AccessTag.Staff,
                 "Crew quarters and facilities"
             );
             AssetDatabase.CreateAsset(crewDeck2, decksPath + "CrewDeck_2.asset");
@@ -133,7 +133,7 @@ namespace CruiseLineInc.Editor
                 0,
                 6,  // 6 tiles wide
                 false, false, true, false,
-                ZoneTag.Staff,
+                AccessTag.Staff,
                 "Engine room and core systems"
             );
             AssetDatabase.CreateAsset(crewDeck1, decksPath + "CrewDeck_1.asset");
@@ -235,7 +235,7 @@ namespace CruiseLineInc.Editor
             bool allowsCrew,
             bool allowsUtilities,
             bool allowsRecreation,
-            ZoneTag zoneTag,
+            AccessTag accessTag,
             string description)
         {
             DeckTypeData data = CreateInstance<DeckTypeData>();
@@ -250,7 +250,7 @@ namespace CruiseLineInc.Editor
             SetPrivateField(data, "_allowsCrewRooms", allowsCrew);
             SetPrivateField(data, "_allowsUtilities", allowsUtilities);
             SetPrivateField(data, "_allowsRecreation", allowsRecreation);
-            SetPrivateField(data, "_defaultZoneTag", zoneTag);
+            SetPrivateField(data, "_defaultAccessTag", accessTag);
             SetPrivateField(data, "_description", description);
             
             return data;

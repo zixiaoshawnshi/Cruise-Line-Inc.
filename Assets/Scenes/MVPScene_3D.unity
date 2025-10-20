@@ -281,7 +281,7 @@ MonoBehaviour:
   _drawTileGizmos: 1
   _tileGizmoColor: {r: 0, g: 1, b: 0, a: 0.65}
   _gizmoHeight: 0.05
-  _tileLayer: 0
+  _tileLayer: 10
   _zoneColorPublic: {r: 0.68, g: 0.82, b: 1, a: 1}
   _zoneColorFamily: {r: 0.85, g: 0.95, b: 0.7, a: 1}
   _zoneColorAdult: {r: 0.98, g: 0.75, b: 0.9, a: 1}
@@ -1397,7 +1397,7 @@ MonoBehaviour:
     m_Bits: 51
   _tileLayerMask:
     serializedVersion: 2
-    m_Bits: 1
+    m_Bits: 1024
 --- !u!4 &2131392211
 Transform:
   m_ObjectHideFlags: 0

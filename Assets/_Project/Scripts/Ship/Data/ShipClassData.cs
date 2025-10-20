@@ -39,6 +39,10 @@ namespace CruiseLineInc.Ship.Data
         [Tooltip("Required/default rooms that are pre-placed on the ship (Bridge, Engine Room, etc.)")]
         [SerializeField] private List<DefaultRoomPlacement> _defaultRooms = new List<DefaultRoomPlacement>();
         
+        [Header("Default Zones")]
+        [Tooltip("Zones that should exist when the ship is first created (corridors, connectors, exits, etc.)")]
+        [SerializeField] private List<DefaultZonePlacement> _defaultZones = new List<DefaultZonePlacement>();
+        
         [Header("Voyage Parameters")]
         [SerializeField] private int _defaultVoyageDays = 2;
         [SerializeField] private float _cruiseSpeed = 20f; // knots
@@ -74,6 +78,7 @@ namespace CruiseLineInc.Ship.Data
         public float StartingFuel => _startingFuel;
         public List<DeckConfig> DeckConfigs => _deckConfigs;
         public List<DefaultRoomPlacement> DefaultRooms => _defaultRooms;
+        public List<DefaultZonePlacement> DefaultZones => _defaultZones;
         public int DefaultVoyageDays => _defaultVoyageDays;
         public float CruiseSpeed => _cruiseSpeed;
         public float DailyUpkeep => _dailyUpkeep;
@@ -96,6 +101,8 @@ namespace CruiseLineInc.Ship.Data
             [SerializeField] private int _widthOverride; // Leave 0 to use DeckTypeData default
             [SerializeField] private int _depthOverride; // Leave 0 to use DeckTypeData default
             [SerializeField] private float _heightOverride; // Leave 0 to use DeckTypeData default
+            [SerializeField] private int _startX; // Global grid starting X position
+            [SerializeField] private int _startZ; // Global grid starting Z position
             
             public int DeckLevel => _deckLevel;
             public DeckTypeData DeckTypeData => _deckTypeData;
@@ -108,6 +115,8 @@ namespace CruiseLineInc.Ship.Data
             public float Height => _heightOverride > 0f
                 ? _heightOverride
                 : (_deckTypeData != null ? _deckTypeData.DeckHeight : 3f);
+            public int StartX => _startX;
+            public int StartZ => _startZ;
         }
         
         /// <summary>
@@ -131,6 +140,43 @@ namespace CruiseLineInc.Ship.Data
             public int DeckLevel => _deckLevel;
             public bool IsFree => _isFree;
             public bool IsDeletable => _isDeletable;
+        }
+        
+        /// <summary>
+        /// Nested class for default zone placement
+        /// </summary>
+        [System.Serializable]
+        public class DefaultZonePlacement
+        {
+            [SerializeField] private ZoneFunctionType _functionType = ZoneFunctionType.Unknown;
+            [SerializeField] private ConnectorType _connector = ConnectorType.None;
+            [SerializeField] private string _blueprintId;
+            [SerializeField] private int _deckLevel;
+            [SerializeField] private int _xPosition;
+            [SerializeField] private int _zPosition;
+            [SerializeField] private int _width = 1;
+            [SerializeField] private int _length = 1;
+            [SerializeField] private int _height = 1;
+            [SerializeField] private bool _isOperational = true;
+            [SerializeField] private bool _isDeletable = true;
+            [SerializeField] private float _verticalTraversalCost = 1f;
+            [SerializeField] private int _verticalCapacity = 1;
+
+            public ZoneFunctionType FunctionType => _functionType;
+            public ConnectorType Connector => _connector;
+            public string BlueprintId => _blueprintId;
+            public int DeckLevel => _deckLevel;
+            public int XPosition => _xPosition;
+            public int ZPosition => _zPosition;
+            public int Width => Mathf.Max(1, _width);
+            public int Length => Mathf.Max(1, _length);
+            public int Height => Mathf.Max(1, _height);
+            public bool IsOperational => _isOperational;
+            public bool IsDeletable => _isDeletable;
+            public float VerticalTraversalCost => Mathf.Max(0f, _verticalTraversalCost);
+            public int VerticalCapacity => Mathf.Max(0, _verticalCapacity);
+
+            public bool HasConnector => _connector != ConnectorType.None;
         }
         
         /// <summary>
@@ -164,6 +210,40 @@ namespace CruiseLineInc.Ship.Data
             };
             
             // Create decks
+            int minStartX = int.MaxValue;
+            int minStartZ = int.MaxValue;
+            int maxEndX = int.MinValue;
+            int maxEndZ = int.MinValue;
+
+            foreach (DeckConfig deckConfig in _deckConfigs)
+            {
+                if (deckConfig.DeckTypeData == null)
+                {
+                    continue;
+                }
+
+                int startX = deckConfig.StartX;
+                int startZ = deckConfig.StartZ;
+                int width = Mathf.Max(1, deckConfig.Width);
+                int depth = Mathf.Max(1, deckConfig.Depth);
+
+                if (startX < minStartX) minStartX = startX;
+                if (startZ < minStartZ) minStartZ = startZ;
+                if (startX + width > maxEndX) maxEndX = startX + width;
+                if (startZ + depth > maxEndZ) maxEndZ = startZ + depth;
+            }
+
+            if (maxEndX == int.MinValue || maxEndZ == int.MinValue)
+            {
+                minStartX = 0;
+                minStartZ = 0;
+                maxEndX = 1;
+                maxEndZ = 1;
+            }
+
+            int globalWidth = Mathf.Max(1, maxEndX - minStartX);
+            int globalDepth = Mathf.Max(1, maxEndZ - minStartZ);
+
             List<Deck> decks = new List<Deck>();
             foreach (DeckConfig deckConfig in _deckConfigs)
             {
@@ -172,23 +252,32 @@ namespace CruiseLineInc.Ship.Data
                     Debug.LogWarning($"DeckConfig at level {deckConfig.DeckLevel} has no DeckTypeData!");
                     continue;
                 }
-                
+
+                int adjustedStartX = deckConfig.StartX - minStartX;
+                int adjustedStartZ = deckConfig.StartZ - minStartZ;
+                int deckWidth = Mathf.Max(1, deckConfig.Width);
+                int deckDepth = Mathf.Max(1, deckConfig.Depth);
+                RectInt activeBounds = new RectInt(adjustedStartX, adjustedStartZ, deckWidth, deckDepth);
+
                 Deck deck = new Deck(
                     deckConfig.DeckLevel,
                     deckConfig.DeckTypeData.DeckType,
-                    deckConfig.Width,
-                    deckConfig.Depth,
+                    globalWidth,
+                    globalDepth,
+                    activeBounds,
                     deckConfig.Height
                 );
                 
                 if (deckConfig.DeckTypeData.HasValidTilePattern())
                 {
-                    for (int x = 0; x < deck.Width; x++)
+                    for (int x = 0; x < deckWidth; x++)
                     {
                         TileType tileType = deckConfig.DeckTypeData.GetTileTypeForPosition(x);
-                        for (int z = 0; z < deck.Depth; z++)
+                        int globalX = activeBounds.x + x;
+                        for (int z = 0; z < deckDepth; z++)
                         {
-                            ShipTile tile = deck.GetTile(x, z);
+                            int globalZ = activeBounds.y + z;
+                            ShipTile tile = deck.GetTile(globalX, globalZ);
                             if (tile != null)
                                 tile.TileType = tileType;
                         }
@@ -200,12 +289,85 @@ namespace CruiseLineInc.Ship.Data
             
             shipData.Decks = decks.ToArray();
             
+            // Place default zones first so rooms can reference them
+            PlaceDefaultZones(shipData);
+
             // Place default rooms (Bridge, Engine Room, etc.)
             PlaceDefaultRooms(shipData);
             
             Debug.Log($"Created ShipData '{shipData.ShipName}': {shipData.Decks.Length} decks, {shipData.TotalTiles} tiles, {_defaultRooms.Count} default rooms");
             
             return shipData;
+        }
+        
+        /// <summary>
+        /// Places default zones defined by the ship class configuration
+        /// </summary>
+        private void PlaceDefaultZones(ShipData shipData)
+        {
+            foreach (DefaultZonePlacement defaultZone in _defaultZones)
+            {
+                if (defaultZone == null)
+                    continue;
+
+                ZoneData previousSlice = null;
+                int targetHeight = Mathf.Max(1, defaultZone.Height);
+
+                for (int layer = 0; layer < targetHeight; layer++)
+                {
+                    int deckLevel = defaultZone.DeckLevel + layer;
+                    Deck deck = shipData.GetDeck(deckLevel);
+                    if (deck == null)
+                    {
+                        Debug.LogWarning($"Default zone '{defaultZone.BlueprintId ?? defaultZone.FunctionType.ToString()}' references missing deck level {deckLevel}. Skipping.");
+                        continue;
+                    }
+
+                    ZoneData zone = shipData.CreateZoneArea(
+                        defaultZone.FunctionType,
+                        deckLevel,
+                        defaultZone.XPosition,
+                        defaultZone.ZPosition,
+                        defaultZone.Width,
+                        defaultZone.Length,
+                        defaultZone.IsOperational,
+                        isDefaultPlacement: true,
+                        isDeletable: defaultZone.IsDeletable,
+                        connector: defaultZone.HasConnector ? defaultZone.Connector : (ConnectorType?)null,
+                        blueprintId: defaultZone.BlueprintId);
+
+                    if (zone == null)
+                        continue;
+
+                    if (defaultZone.VerticalTraversalCost > 0f)
+                        zone.Metrics["VerticalTraversalCost"] = defaultZone.VerticalTraversalCost;
+
+                    if (defaultZone.VerticalCapacity > 0)
+                        zone.Metrics["VerticalCapacity"] = defaultZone.VerticalCapacity;
+
+                    if (previousSlice != null)
+                    {
+                        DeckLink upwardLink = new DeckLink
+                        {
+                            TargetDeck = previousSlice.Deck,
+                            TraversalCost = defaultZone.VerticalTraversalCost > 0f ? defaultZone.VerticalTraversalCost : 1f,
+                            Capacity = defaultZone.VerticalCapacity > 0 ? defaultZone.VerticalCapacity : 1
+                        };
+
+                        DeckLink downwardLink = new DeckLink
+                        {
+                            TargetDeck = zone.Deck,
+                            TraversalCost = defaultZone.VerticalTraversalCost > 0f ? defaultZone.VerticalTraversalCost : 1f,
+                            Capacity = defaultZone.VerticalCapacity > 0 ? defaultZone.VerticalCapacity : 1
+                        };
+
+                        zone.DeckLinks.Add(upwardLink);
+                        previousSlice.DeckLinks.Add(downwardLink);
+                    }
+
+                    previousSlice = zone;
+                }
+            }
         }
         
         /// <summary>
@@ -223,54 +385,29 @@ namespace CruiseLineInc.Ship.Data
                 
                 Room.Data.RoomDefinition roomDef = defaultRoom.RoomDefinition;
                 
-                // Create room instance
-                string roomId = System.Guid.NewGuid().ToString();
-                Room.Room room = new Room.Room(
-                    roomId,
-                    roomDef.RoomId,
+                RoomData roomData = shipData.CreateRoomFromDefinition(
+                    roomDef,
                     defaultRoom.XPosition,
                     defaultRoom.ZPosition,
                     defaultRoom.DeckLevel,
-                    roomDef.Width,
-                    roomDef.Length,
-                    roomDef.Height,
-                    defaultRoom.IsFree ? 0f : roomDef.BuildCost,  // Free rooms cost $0
-                    defaultRoom.IsDeletable  // Pass deletable flag
+                    isOperational: true,
+                    isDefaultPlacement: true,
+                    markAutoGenerated: false,
+                    isDeletable: defaultRoom.IsDeletable
                 );
-                
-                // Default rooms are always active
-                room.IsActive = true;
-                room.ConstructionProgress = 1f;
-                
-                // Place room tiles
-                if (roomDef.Height > 1)
+
+                if (roomData == null)
                 {
-                    shipData.PlaceMultiLevelRoom(
-                        defaultRoom.XPosition,
-                        defaultRoom.ZPosition,
-                        roomDef.Width,
-                        roomDef.Length,
-                        defaultRoom.DeckLevel,
-                        roomDef.Height,
-                        roomId
-                    );
+                    Debug.LogWarning($"Failed to place default room '{roomDef.DisplayName}' at ({defaultRoom.XPosition}, {defaultRoom.ZPosition}) on deck {defaultRoom.DeckLevel}.");
+                    continue;
                 }
-                else
+
+                if (defaultRoom.IsFree && shipData.TryGetZone(roomData.ZoneId, out ZoneData zone))
                 {
-                    shipData.PlaceRoom(
-                        defaultRoom.XPosition,
-                        defaultRoom.ZPosition,
-                        roomDef.Width,
-                        roomDef.Length,
-                        defaultRoom.DeckLevel,
-                        roomId
-                    );
+                    zone.Metrics["BuildCost"] = 0f;
                 }
-                
-                // Add to room list
-                shipData.AddRoom(room);
-                
-                Debug.Log($"鉁?Placed default room: {roomDef.DisplayName} at ({defaultRoom.XPosition}, {defaultRoom.DeckLevel}) - Size: {roomDef.Width}x{roomDef.Height}");
+
+                Debug.Log($"Placed default room: {roomDef.DisplayName} at ({defaultRoom.XPosition}, {defaultRoom.ZPosition}, deck {defaultRoom.DeckLevel}) - Size: {roomDef.Width}x{roomDef.Height}");
             }
         }
     }

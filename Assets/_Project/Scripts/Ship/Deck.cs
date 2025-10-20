@@ -1,5 +1,7 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
+using CruiseLineInc.Ship.Data;
+using UnityEngine;
 
 namespace CruiseLineInc.Ship
 {
@@ -18,18 +20,20 @@ namespace CruiseLineInc.Ship
         public int Depth;   // Tiles along Z
         public ShipTile[,] Tiles;
         public float DeckHeight;
+        public RectInt ActiveBounds { get; }
         
         #endregion
         
         #region Constructor
         
-        public Deck(int deckLevel, DeckType deckType, int width, int depth = 1, float deckHeight = 3f)
+        public Deck(int deckLevel, DeckType deckType, int globalWidth, int globalDepth, RectInt activeBounds, float deckHeight = 3f)
         {
             DeckLevel = deckLevel;
             DeckType = deckType;
-            Width = width <= 0 ? 1 : width;
-            Depth = depth <= 0 ? 1 : depth;
+            Width = globalWidth <= 0 ? 1 : globalWidth;
+            Depth = globalDepth <= 0 ? 1 : globalDepth;
             DeckHeight = deckHeight > 0f ? deckHeight : 3f;
+            ActiveBounds = activeBounds;
             
             // Create tiles
             Tiles = new ShipTile[Width, Depth];
@@ -38,6 +42,11 @@ namespace CruiseLineInc.Ship
                 for (int z = 0; z < Depth; z++)
                 {
                     Tiles[x, z] = new ShipTile(x, z, deckLevel, deckType);
+                    if (!ActiveBounds.Contains(new Vector2Int(x, z)))
+                    {
+                        Tiles[x, z].IsBuildable = false;
+                        Tiles[x, z].IsNavigable = false;
+                    }
                 }
             }
         }
@@ -98,6 +107,9 @@ namespace CruiseLineInc.Ship
                     if (!IsValidPosition(checkX, checkZ))
                         return false;
 
+                    if (!IsActiveTile(checkX, checkZ))
+                        return false;
+
                     ShipTile tile = GetTile(checkX, checkZ);
                     if (tile == null || !tile.CanBuild())
                         return false;
@@ -126,7 +138,7 @@ namespace CruiseLineInc.Ship
         /// <summary>
         /// Occupies tiles for a room
         /// </summary>
-        public void OccupyTiles(int xPosition, int zPosition, int roomWidth, int roomDepth, string roomId, bool isMultiLevel = false, int rootDeckLevel = -1)
+        public void OccupyTiles(int xPosition, int zPosition, int roomWidth, int roomDepth, RoomId roomId, bool isMultiLevel = false, int rootDeckLevel = -1)
         {
             for (int x = 0; x < roomWidth; x++)
             {
@@ -135,6 +147,9 @@ namespace CruiseLineInc.Ship
                     ShipTile tile = GetTile(xPosition + x, zPosition + z);
 
                     if (tile == null)
+                        continue;
+
+                    if (!IsActiveTile(xPosition + x, zPosition + z))
                         continue;
 
                     tile.IsOccupied = true;
@@ -163,8 +178,11 @@ namespace CruiseLineInc.Ship
                     if (tile == null)
                         continue;
 
+                    if (!IsActiveTile(xPosition + x, zPosition + z))
+                        continue;
+
                     tile.IsOccupied = false;
-                    tile.RoomId = null;
+                    tile.RoomId = RoomId.Invalid;
                     tile.IsMultiLevelTile = false;
                     tile.RootDeckLevel = DeckLevel;
                     tile.LayerOffset = 0;
@@ -172,6 +190,8 @@ namespace CruiseLineInc.Ship
                 }
             }
         }
+
+        public bool IsActiveTile(int xPosition, int zPosition) => ActiveBounds.Contains(new Vector2Int(xPosition, zPosition));
         
         #endregion
         

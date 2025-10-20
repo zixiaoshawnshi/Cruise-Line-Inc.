@@ -20,7 +20,7 @@ namespace CruiseLineInc.Ship
         
         [Header("Room Definitions")]
         [Tooltip("Auto-populated from Resources or manually assign room definitions")]
-        [SerializeField] private List<CruiseLineInc.Room.Data.RoomDefinition> _roomDefinitions = new List<CruiseLineInc.Room.Data.RoomDefinition>();
+        [SerializeField] private List<RoomDefinition> _roomDefinitions = new List<RoomDefinition>();
         
         [Header("Current Ship")]
         [SerializeField] private ShipData _currentShipData;
@@ -134,10 +134,10 @@ namespace CruiseLineInc.Ship
             }
             
             // Try to load from Resources folder
-            var definitions = Resources.LoadAll<CruiseLineInc.Room.Data.RoomDefinition>("Data/Rooms");
+            var definitions = Resources.LoadAll<RoomDefinition>("Data/Rooms");
             if (definitions != null && definitions.Length > 0)
             {
-                _roomDefinitions = new List<CruiseLineInc.Room.Data.RoomDefinition>(definitions);
+                _roomDefinitions = new List<RoomDefinition>(definitions);
                 Debug.Log($"Loaded {_roomDefinitions.Count} room definitions from Resources/Data/Rooms");
             }
             else
@@ -275,46 +275,49 @@ namespace CruiseLineInc.Ship
             // Clear existing room tiles
             _roomTilemap.ClearAllTiles();
             
-            if (shipData.Rooms == null || shipData.Rooms.Count == 0)
+            if (shipData.ZoneRooms == null || shipData.ZoneRooms.Count == 0)
                 return;
             
             int roomsRendered = 0;
-            foreach (var room in shipData.Rooms)
+            foreach (RoomData room in shipData.ZoneRooms.Values)
             {
-                if (RenderRoom(room))
+                if (RenderRoom(shipData, room))
                     roomsRendered++;
             }
             
             Debug.Log($"ShipView: Rendered {roomsRendered} rooms");
         }
-        
+
+        private RoomDefinition FindRoomDefinition(string roomId)
+        {
+            if (string.IsNullOrEmpty(roomId) || _roomDefinitions == null)
+                return null;
+
+            for (int i = 0; i < _roomDefinitions.Count; i++)
+            {
+                RoomDefinition definition = _roomDefinitions[i];
+                if (definition != null && definition.RoomId == roomId)
+                    return definition;
+            }
+
+            return null;
+        }
+
         /// <summary>
         /// Renders a single room
         /// </summary>
-        private bool RenderRoom(CruiseLineInc.Room.Room room)
+        private bool RenderRoom(ShipData shipData, RoomData room)
         {
-            // Find the room definition
-            CruiseLineInc.Room.Data.RoomDefinition definition = null;
-            
-            if (_roomDefinitions != null)
-            {
-                foreach (var def in _roomDefinitions)
-                {
-                    if (def.RoomId == room.RoomDefinitionId)
-                    {
-                        definition = def;
-                        break;
-                    }
-                }
-            }
+            ZoneData zone = shipData.Zones.TryGetValue(room.ZoneId, out ZoneData z) ? z : null;
+            string blueprintId = zone?.ZoneBlueprintId;
+            RoomDefinition definition = FindRoomDefinition(blueprintId);
 
             if (definition == null)
             {
-                Debug.LogWarning($"No room definition found for room {room.RoomId} (looking for RoomDefinitionId: {room.RoomDefinitionId})");
+                Debug.LogWarning($"ShipView: No room definition found for blueprint '{blueprintId}'.");
                 return false;
             }
             
-            Debug.Log($"RenderRoom -> {room.RoomDefinitionId}, sprite: {definition.RoomSprite?.name}");
             if (definition.RoomSprite == null)
             {
                 Debug.LogWarning($"Room definition '{definition.DisplayName}' has no sprite assigned!");
@@ -328,11 +331,12 @@ namespace CruiseLineInc.Ship
             roomTile.color = Color.white;
             
             // Render the room across its width and height
-            for (int h = 0; h < room.Height; h++)
+            BoundsInt footprint = room.Footprint;
+            for (int h = 0; h < footprint.size.y; h++)
             {
-                for (int w = 0; w < room.Width; w++)
+                for (int w = 0; w < footprint.size.x; w++)
                 {
-                    Vector3Int position = new Vector3Int(room.XPosition + w, room.DeckLevel + h, 0);
+                    Vector3Int position = new Vector3Int(footprint.position.x + w, footprint.position.y + h, 0);
                     _roomTilemap.SetTile(position, roomTile);
                 }
             }

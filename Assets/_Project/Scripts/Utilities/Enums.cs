@@ -28,9 +28,9 @@ namespace CruiseLineInc
     }
 
     /// <summary>
-    /// Zone access tags for agents
+    /// Access control tags for agents
     /// </summary>
-    public enum ZoneTag
+    public enum AccessTag
     {
         Public,      // Accessible to all passengers
         Family,      // Family-friendly areas

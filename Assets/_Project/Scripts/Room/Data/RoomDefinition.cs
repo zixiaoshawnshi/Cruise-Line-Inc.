@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using CruiseLineInc.Ship.Data;
 
 namespace CruiseLineInc.Room.Data
 {
@@ -17,6 +18,8 @@ namespace CruiseLineInc.Room.Data
         [SerializeField] private string _displayName = "Standard Cabin";
         [TextArea(2, 4)]
         [SerializeField] private string _description = "Basic passenger cabin with bed and bathroom.";
+        [Header("Zone")]
+        [SerializeField] private ZoneFunctionType _zoneFunction = ZoneFunctionType.Unknown;
         
         #endregion
         
@@ -103,6 +106,7 @@ namespace CruiseLineInc.Room.Data
         public float NoiseLevel => _noiseLevel;
         public float ComfortRating => _comfortRating;
         public int Capacity => _capacity;
+        public ZoneFunctionType ZoneFunction => _zoneFunction;
         
         #endregion
         

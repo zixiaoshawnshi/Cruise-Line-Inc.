@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.Serialization;
 
 using UnityEngine;
 
@@ -26,8 +27,9 @@ namespace CruiseLineInc.Ship.Data
                  "Array length should match width, or will be padded/trimmed automatically.")]
         [SerializeField] private TileType[] _defaultTilePattern;
         
-        [Header("Default Zone")]
-        [SerializeField] private ZoneTag _defaultZoneTag = ZoneTag.Public;
+        [Header("Default Access Tag")]
+        [FormerlySerializedAs("_defaultZoneTag")]
+        [SerializeField] private AccessTag _defaultAccessTag = AccessTag.Public;
         
         [Header("Description")]
         [TextArea(3, 5)]
@@ -42,7 +44,7 @@ namespace CruiseLineInc.Ship.Data
         public int Depth => Mathf.Max(1, _depth);
         public float DeckHeight => Mathf.Max(1f, _deckHeight);
         public float TileSize => _tileSize;
-        public ZoneTag DefaultZoneTag => _defaultZoneTag;
+        public AccessTag DefaultAccessTag => _defaultAccessTag;
         public string Description => _description;
         public TileType[] DefaultTilePattern => _defaultTilePattern;
         

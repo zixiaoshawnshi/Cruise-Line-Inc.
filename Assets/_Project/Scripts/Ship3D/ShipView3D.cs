@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using System.Collections.Generic;
 using CruiseLineInc.Ship;
 using CruiseLineInc.Ship.Data;
 using UnityEngine;
@@ -30,13 +29,26 @@ namespace CruiseLineInc.Ship3D
         [SerializeField] private int _tileLayer = 0;
 
         [Header("Zone Colors")]
-        [SerializeField] private Color _zoneColorPublic = new Color(0.68f, 0.82f, 1f);
-        [SerializeField] private Color _zoneColorFamily = new Color(0.85f, 0.95f, 0.7f);
-        [SerializeField] private Color _zoneColorAdult = new Color(0.98f, 0.75f, 0.9f);
-        [SerializeField] private Color _zoneColorPremium = new Color(0.78f, 0.75f, 1f);
-        [SerializeField] private Color _zoneColorLuxury = new Color(1f, 0.85f, 0.6f);
-        [SerializeField] private Color _zoneColorStaff = new Color(0.75f, 0.9f, 0.7f);
-        [SerializeField] private Color _zoneColorRestricted = new Color(1f, 0.6f, 0.6f);
+        [FormerlySerializedAs("_zoneColorPublic")]
+        [SerializeField] private Color _zoneColorCorridor = new Color(0.68f, 0.82f, 1f);
+        [FormerlySerializedAs("_zoneColorFamily")]
+        [SerializeField] private Color _zoneColorStateroom = new Color(0.85f, 0.95f, 0.7f);
+        [FormerlySerializedAs("_zoneColorPremium")]
+        [SerializeField] private Color _zoneColorDining = new Color(1f, 0.85f, 0.6f);
+        [FormerlySerializedAs("_zoneColorAdult")]
+        [SerializeField] private Color _zoneColorLeisure = new Color(0.98f, 0.75f, 0.9f);
+        [FormerlySerializedAs("_zoneColorStaff")]
+        [SerializeField] private Color _zoneColorService = new Color(0.75f, 0.9f, 0.7f);
+        [FormerlySerializedAs("_zoneColorRestricted")]
+        [SerializeField] private Color _zoneColorEngine = new Color(1f, 0.6f, 0.4f);
+        [SerializeField] private Color _zoneColorStorage = new Color(0.8f, 0.75f, 0.6f);
+        [SerializeField] private Color _zoneColorMedical = new Color(0.7f, 0.95f, 0.95f);
+        [SerializeField] private Color _zoneColorUtility = new Color(0.75f, 0.75f, 0.85f);
+        [FormerlySerializedAs("_zoneColorLuxury")]
+        [SerializeField] private Color _zoneColorCrew = new Color(0.7f, 0.8f, 0.95f);
+        [SerializeField] private Color _zoneColorBridge = new Color(0.95f, 0.95f, 0.75f);
+        [SerializeField] private Color _zoneColorElevator = new Color(0.8f, 0.8f, 0.8f);
+        [SerializeField] private Color _zoneColorExit = new Color(0.9f, 0.65f, 0.65f);
         [SerializeField] private Color _zoneColorDefault = new Color(0.78f, 0.78f, 0.78f);
 
         [Header("Overlay Colors")]
@@ -171,7 +183,7 @@ namespace CruiseLineInc.Ship3D
                 return;
 
             Deck deck = _currentShipData.GetDeck(deckLevel);
-            if (deck == null || !deck.IsValidPosition(x, z))
+            if (deck == null || !deck.IsValidPosition(x, z) || !deck.IsActiveTile(x, z))
                 return;
 
             ShipTile tile = deck.GetTile(x, z);
@@ -188,7 +200,7 @@ namespace CruiseLineInc.Ship3D
                 return;
 
             Deck deck = _currentShipData.GetDeck(deckLevel);
-            if (deck == null || !deck.IsValidPosition(x, z))
+            if (deck == null || !deck.IsValidPosition(x, z) || !deck.IsActiveTile(x, z))
                 return;
 
             ShipTile tile = deck.GetTile(x, z);
@@ -223,7 +235,7 @@ namespace CruiseLineInc.Ship3D
             deckRoot.transform.localPosition = new Vector3(0f, offsetY, 0f);
 
             float deckHeight = deck.DeckHeight > 0f ? deck.DeckHeight : _defaultDeckHeight;
-            DeckVisual deckVisual = new DeckVisual(this, deck.DeckLevel, deckRoot.transform, deck.Width, deck.Depth, deckHeight, _tilePrefab, _tileSize, _zoneColorDefault, _tileLayer);
+            DeckVisual deckVisual = new DeckVisual(this, deck.DeckLevel, deckRoot.transform, deck.Width, deck.Depth, deckHeight, _tilePrefab, _tileSize, _zoneColorDefault, _tileLayer, deck.ActiveBounds);
             deckVisual.UpdateRootOffset(offsetY);
             deckVisual.PopulateTiles();
             _deckVisuals[deck.DeckLevel] = deckVisual;
@@ -384,7 +396,7 @@ namespace CruiseLineInc.Ship3D
                 return;
 
             Deck deck = _currentShipData.GetDeck(deckLevel);
-            if (deck == null || !deck.IsValidPosition(x, z))
+            if (deck == null || !deck.IsValidPosition(x, z) || !deck.IsActiveTile(x, z))
                 return;
 
             ShipTile tile = deck.GetTile(x, z);
@@ -394,7 +406,15 @@ namespace CruiseLineInc.Ship3D
             if (!_deckVisuals.TryGetValue(deckLevel, out DeckVisual deckVisual))
                 return;
 
-            Color zoneColor = GetZoneColor(tile.ZoneTag);
+            ZoneData zone = null;
+            ZoneFunctionType? functionType = null;
+            if (_currentShipData.TryGetZoneAtPosition(deckLevel, x, z, out ZoneData foundZone))
+            {
+                zone = foundZone;
+                functionType = zone.FunctionType;
+            }
+
+            Color zoneColor = GetZoneColor(functionType);
             bool isBuildable = tile.CanBuild();
             bool isSelected = tile.IsSelected;
             bool highlighted = tile.IsHighlighted;
@@ -411,27 +431,28 @@ namespace CruiseLineInc.Ship3D
                 _blockedOverlayColor);
         }
 
-        private Color GetZoneColor(ZoneTag zone)
+        private Color GetZoneColor(ZoneFunctionType? function)
         {
-            switch (zone)
+            if (!function.HasValue)
+                return _zoneColorDefault;
+
+            return function.Value switch
             {
-                case ZoneTag.Public:
-                    return _zoneColorPublic;
-                case ZoneTag.Family:
-                    return _zoneColorFamily;
-                case ZoneTag.Adult:
-                    return _zoneColorAdult;
-                case ZoneTag.Premium:
-                    return _zoneColorPremium;
-                case ZoneTag.Luxury:
-                    return _zoneColorLuxury;
-                case ZoneTag.Staff:
-                    return _zoneColorStaff;
-                case ZoneTag.Restricted:
-                    return _zoneColorRestricted;
-                default:
-                    return _zoneColorDefault;
-            }
+                ZoneFunctionType.Corridor => _zoneColorCorridor,
+                ZoneFunctionType.Stateroom => _zoneColorStateroom,
+                ZoneFunctionType.Dining => _zoneColorDining,
+                ZoneFunctionType.Leisure => _zoneColorLeisure,
+                ZoneFunctionType.Service => _zoneColorService,
+                ZoneFunctionType.Engine => _zoneColorEngine,
+                ZoneFunctionType.Storage => _zoneColorStorage,
+                ZoneFunctionType.Medical => _zoneColorMedical,
+                ZoneFunctionType.Utility => _zoneColorUtility,
+                ZoneFunctionType.Crew => _zoneColorCrew,
+                ZoneFunctionType.Bridge => _zoneColorBridge,
+                ZoneFunctionType.Elevator => _zoneColorElevator,
+                ZoneFunctionType.Exit => _zoneColorExit,
+                _ => _zoneColorDefault
+            };
         }
 
         public bool TryGetDeckCenterWorld(int deckLevel, out Vector3 center)
@@ -563,12 +584,13 @@ namespace CruiseLineInc.Ship3D
             private readonly Color _defaultZoneColor;
             private readonly TileInstance[,] _tiles;
             private readonly int _tileLayer;
+            private readonly RectInt _activeBounds;
 
             private static readonly int ZoneColorId = Shader.PropertyToID("_ZoneColor");
             private static readonly int OverlayColorId = Shader.PropertyToID("_OverlayColor");
             private static readonly int OverlayIntensityId = Shader.PropertyToID("_OverlayIntensity");
 
-            public DeckVisual(ShipView3D view, int deckLevel, Transform root, int width, int depth, float deckHeight, GameObject tilePrefab, Vector2 tileSize, Color defaultZoneColor, int tileLayer)
+            public DeckVisual(ShipView3D view, int deckLevel, Transform root, int width, int depth, float deckHeight, GameObject tilePrefab, Vector2 tileSize, Color defaultZoneColor, int tileLayer, RectInt activeBounds)
             {
                 _view = view;
                 _deckLevel = deckLevel;
@@ -581,6 +603,7 @@ namespace CruiseLineInc.Ship3D
                 _defaultZoneColor = defaultZoneColor;
                 _tileLayer = tileLayer;
                 _tiles = new TileInstance[_width, _depth];
+                _activeBounds = activeBounds;
             }
 
             public void UpdateRootOffset(float offsetY)
@@ -638,6 +661,16 @@ namespace CruiseLineInc.Ship3D
                             renderer.SetPropertyBlock(defaultBlock);
                         }
                         _tiles[x, z] = instance;
+
+                        bool isActive = IsActiveIndex(x, z);
+                        if (!isActive)
+                        {
+                            if (collider != null)
+                                collider.enabled = false;
+                            if (handle != null)
+                                handle.enabled = false;
+                        }
+                        tileObj.SetActive(isActive);
                     }
                 }
             }
@@ -654,7 +687,7 @@ namespace CruiseLineInc.Ship3D
 
             public void UpdateTileVisual(int x, int z, Color zoneColor, bool buildable, bool isSelected, bool highlighted, Color selectionColor, Color highlightColor, Color blockedColor)
             {
-                if (!IsValidIndex(x, z))
+                if (!IsValidIndex(x, z) || !IsActiveIndex(x, z))
                     return;
 
                 TileInstance instance = _tiles[x, z];
@@ -695,11 +728,14 @@ namespace CruiseLineInc.Ship3D
                 Gizmos.color = color;
                 for (int x = 0; x < _width; x++)
                 {
-                    for (int z = 0; z < _depth; z++)
-                    {
-                        Transform transform = _tiles[x, z].Transform;
-                        if (transform == null)
-                            continue;
+                for (int z = 0; z < _depth; z++)
+                {
+                    if (!IsActiveIndex(x, z))
+                        continue;
+
+                    Transform transform = _tiles[x, z].Transform;
+                    if (transform == null)
+                        continue;
 
                         Gizmos.DrawWireCube(transform.position, gizmoSize);
                     }
@@ -774,6 +810,11 @@ namespace CruiseLineInc.Ship3D
             private bool IsValidIndex(int x, int z)
             {
                 return x >= 0 && x < _width && z >= 0 && z < _depth;
+            }
+
+            private bool IsActiveIndex(int x, int z)
+            {
+                return _activeBounds.Contains(new Vector2Int(x, z));
             }
         }
 

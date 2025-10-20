@@ -32,32 +32,97 @@ MonoBehaviour:
     _widthOverride: 0
     _depthOverride: 0
     _heightOverride: 0
+    _startX: 4
+    _startZ: 0
   - _deckLevel: 4
     _deckTypeData: {fileID: 11400000, guid: 05595fc432627cf498e54c2e8eef55c9, type: 2}
     _widthOverride: 0
     _depthOverride: 0
     _heightOverride: 0
+    _startX: 0
+    _startZ: 0
   - _deckLevel: 3
     _deckTypeData: {fileID: 11400000, guid: bde778c6cdcadae4ab80f378021dcbb3, type: 2}
     _widthOverride: 0
     _depthOverride: 0
     _heightOverride: 0
+    _startX: 0
+    _startZ: 0
   - _deckLevel: 2
     _deckTypeData: {fileID: 11400000, guid: d4a00775df46bc747b82d6cba6973993, type: 2}
     _widthOverride: 0
     _depthOverride: 0
     _heightOverride: 0
+    _startX: 0
+    _startZ: 0
   - _deckLevel: 1
     _deckTypeData: {fileID: 11400000, guid: e3b0bf09aa49e644b8b7cb2c2c2fa61b, type: 2}
     _widthOverride: 0
     _depthOverride: 0
     _heightOverride: 0
+    _startX: 0
+    _startZ: 1
   - _deckLevel: 0
     _deckTypeData: {fileID: 11400000, guid: 94da44f05eebcc747ad84fc39e1976ba, type: 2}
     _widthOverride: 0
     _depthOverride: 0
     _heightOverride: 0
+    _startX: 0
+    _startZ: 1
   _defaultRooms: []
+  _defaultZones:
+  - _functionType: 6
+    _connector: 0
+    _blueprintId: 
+    _deckLevel: 0
+    _xPosition: 0
+    _zPosition: 1
+    _width: 2
+    _length: 6
+    _height: 1
+    _isOperational: 1
+    _isDeletable: 0
+    _verticalTraversalCost: 0
+    _verticalCapacity: 0
+  - _functionType: 1
+    _connector: 1
+    _blueprintId: 
+    _deckLevel: 0
+    _xPosition: 2
+    _zPosition: 3
+    _width: 4
+    _length: 2
+    _height: 1
+    _isOperational: 1
+    _isDeletable: 0
+    _verticalTraversalCost: 0
+    _verticalCapacity: 0
+  - _functionType: 12
+    _connector: 2
+    _blueprintId: CrewStair
+    _deckLevel: 0
+    _xPosition: 2
+    _zPosition: 5
+    _width: 2
+    _length: 2
+    _height: 3
+    _isOperational: 1
+    _isDeletable: 0
+    _verticalTraversalCost: 5
+    _verticalCapacity: 100
+  - _functionType: 13
+    _connector: 4
+    _blueprintId: 
+    _deckLevel: 2
+    _xPosition: 5
+    _zPosition: 1
+    _width: 4
+    _length: 1
+    _height: 1
+    _isOperational: 1
+    _isDeletable: 0
+    _verticalTraversalCost: 0
+    _verticalCapacity: 0
   _defaultVoyageDays: 2
   _cruiseSpeed: 20
   _dailyUpkeep: 1200
