@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using CruiseLineInc.Ship;
 using CruiseLineInc.Ship.Data;
@@ -56,10 +57,13 @@ namespace CruiseLineInc.Ship3D
         [SerializeField] private Color _selectionOverlayColor = new Color(1f, 0.9f, 0.25f, 0.45f);
         [SerializeField] private Color _blockedOverlayColor = new Color(1f, 0.25f, 0.25f, 0.45f);
 
+        public event Action<int> DefaultDeckFocusRequested;
+
         private readonly Dictionary<int, DeckVisual> _deckVisuals = new();
         private readonly Dictionary<int, float> _deckOffsets = new();
         private readonly HashSet<int> _decksPendingRefresh = new();
         private ShipData _currentShipData;
+        private bool _defaultDeckFocusSent;
 
         private void Awake()
         {
@@ -126,6 +130,7 @@ namespace CruiseLineInc.Ship3D
             }
 
             ApplyOffsetsToDeckVisuals();
+            RequestInitialDeckFocus();
         }
 
         /// <summary>
@@ -150,6 +155,11 @@ namespace CruiseLineInc.Ship3D
             else
             {
                 CreateDeckVisual(deck);
+            }
+
+            if (!_defaultDeckFocusSent)
+            {
+                RequestInitialDeckFocus();
             }
         }
 
@@ -220,6 +230,8 @@ namespace CruiseLineInc.Ship3D
             }
             _deckVisuals.Clear();
             _deckOffsets.Clear();
+            _decksPendingRefresh.Clear();
+            _defaultDeckFocusSent = false;
         }
 
         private void CreateDeckVisual(Deck deck)
@@ -611,6 +623,34 @@ namespace CruiseLineInc.Ship3D
 
             levels.Sort();
             return levels.Count > 0;
+        }
+
+        private void RequestInitialDeckFocus()
+        {
+            if (_defaultDeckFocusSent)
+                return;
+
+            if (_currentShipData?.Decks == null || _currentShipData.Decks.Length == 0)
+                return;
+
+            int defaultDeckLevel = int.MaxValue;
+            foreach (Deck deck in _currentShipData.Decks)
+            {
+                if (deck == null)
+                    continue;
+
+                if (deck.DeckLevel < defaultDeckLevel)
+                {
+                    defaultDeckLevel = deck.DeckLevel;
+                }
+            }
+
+            if (defaultDeckLevel == int.MaxValue)
+                return;
+
+            SetDeckVisibility(defaultDeckLevel);
+            _defaultDeckFocusSent = true;
+            DefaultDeckFocusRequested?.Invoke(defaultDeckLevel);
         }
 
         private readonly struct TileVisual

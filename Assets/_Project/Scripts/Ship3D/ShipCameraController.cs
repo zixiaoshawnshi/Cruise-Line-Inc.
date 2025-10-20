@@ -64,6 +64,7 @@ namespace CruiseLineInc.Ship3D
         private float _pitch = 45f;
         private bool _hasFocus;
         private bool _initialized;
+        private ShipView3D _subscribedShipView;
 
         #region Unity Lifecycle
 
@@ -74,10 +75,8 @@ namespace CruiseLineInc.Ship3D
                 _camera = GetComponent<Camera>();
             }
 
-            if (_shipView == null)
-            {
-                _shipView = Object.FindFirstObjectByType<ShipView3D>();
-            }
+            ShipView3D viewReference = _shipView != null ? _shipView : Object.FindFirstObjectByType<ShipView3D>();
+            HookShipView(viewReference);
         }
 
         private void OnEnable()
@@ -90,6 +89,15 @@ namespace CruiseLineInc.Ship3D
             EnableReference(_zoomAction);
             RegisterDeckAction(_deckUpAction, OnDeckUpPerformed);
             RegisterDeckAction(_deckDownAction, OnDeckDownPerformed);
+
+            if (_shipView == null)
+            {
+                HookShipView(Object.FindFirstObjectByType<ShipView3D>());
+            }
+            else
+            {
+                HookShipView(_shipView);
+            }
         }
 
         private void OnDisable()
@@ -102,6 +110,21 @@ namespace CruiseLineInc.Ship3D
             DisableReference(_zoomAction);
             UnregisterDeckAction(_deckUpAction, OnDeckUpPerformed);
             UnregisterDeckAction(_deckDownAction, OnDeckDownPerformed);
+
+            if (_subscribedShipView != null)
+            {
+                _subscribedShipView.DefaultDeckFocusRequested -= OnDefaultDeckFocusRequested;
+                _subscribedShipView = null;
+            }
+        }
+
+        private void OnDestroy()
+        {
+            if (_subscribedShipView != null)
+            {
+                _subscribedShipView.DefaultDeckFocusRequested -= OnDefaultDeckFocusRequested;
+                _subscribedShipView = null;
+            }
         }
 
         private void Update()
@@ -347,7 +370,11 @@ namespace CruiseLineInc.Ship3D
         {
             if (_shipView == null)
             {
-                _shipView = Object.FindFirstObjectByType<ShipView3D>();
+                HookShipView(Object.FindFirstObjectByType<ShipView3D>());
+            }
+            else if (_subscribedShipView == null)
+            {
+                HookShipView(_shipView);
             }
 
             if (_shipView == null)
@@ -414,6 +441,41 @@ namespace CruiseLineInc.Ship3D
         }
 
         #endregion
+
+        private void HookShipView(ShipView3D view)
+        {
+            if (_subscribedShipView == view)
+            {
+                _shipView = view;
+                return;
+            }
+
+            if (_subscribedShipView != null)
+            {
+                _subscribedShipView.DefaultDeckFocusRequested -= OnDefaultDeckFocusRequested;
+            }
+
+            _subscribedShipView = view;
+            _shipView = view;
+
+            if (_subscribedShipView != null)
+            {
+                _subscribedShipView.DefaultDeckFocusRequested += OnDefaultDeckFocusRequested;
+            }
+        }
+
+        private void OnDefaultDeckFocusRequested(int deckLevel)
+        {
+            if (!isActiveAndEnabled)
+                return;
+
+            FocusDeck(deckLevel);
+
+            if (_deckLevels.Count > 0)
+            {
+                _initialized = true;
+            }
+        }
 
         #region Input Utility Helpers
 
