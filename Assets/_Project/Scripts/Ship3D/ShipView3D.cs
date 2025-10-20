@@ -69,7 +69,7 @@ namespace CruiseLineInc.Ship3D
         {
             if (_shipManager == null)
             {
-                _shipManager = Object.FindFirstObjectByType<ShipManager>();
+                _shipManager = UnityEngine.Object.FindFirstObjectByType<ShipManager>();
             }
         }
 
@@ -734,7 +734,7 @@ namespace CruiseLineInc.Ship3D
                             (z - (_depth - 1) * 0.5f) * _tileSize.y
                         );
 
-                        GameObject tileObj = Object.Instantiate(_tilePrefab, _root);
+                        GameObject tileObj = UnityEngine.Object.Instantiate(_tilePrefab, _root);
                         tileObj.name = $"Tile_{x:D2}_{z:D2}";
                         tileObj.transform.localPosition = localPos;
                         tileObj.transform.localRotation = Quaternion.identity;
@@ -905,11 +905,11 @@ namespace CruiseLineInc.Ship3D
 
                 if (Application.isPlaying)
                 {
-                    Object.Destroy(_root.gameObject);
+                    UnityEngine.Object.Destroy(_root.gameObject);
                 }
                 else
                 {
-                    Object.DestroyImmediate(_root.gameObject);
+                    UnityEngine.Object.DestroyImmediate(_root.gameObject);
                 }
             }
 
