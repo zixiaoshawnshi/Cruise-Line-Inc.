@@ -678,6 +678,95 @@ namespace CruiseLineInc.Ship
             return true;
         }
 
+        public bool TryExtendZone(
+            ZoneId zoneId,
+            IEnumerable<Vector2Int> tilePositions,
+            out ZoneData zone)
+        {
+            zone = null;
+
+            if (!zoneId.IsValid)
+            {
+                Debug.LogWarning("[ShipData] TryExtendZone failed: invalid zone id.");
+                return false;
+            }
+
+            if (tilePositions == null)
+            {
+                Debug.LogWarning("[ShipData] TryExtendZone failed: tilePositions is null.");
+                return false;
+            }
+
+            if (!Zones.TryGetValue(zoneId, out ZoneData targetZone))
+            {
+                Debug.LogWarning($"[ShipData] TryExtendZone failed: zone {zoneId.Value} not found.");
+                return false;
+            }
+
+            int deckLevel = targetZone.Deck;
+            Deck deck = GetDeck(deckLevel);
+            if (deck == null)
+            {
+                Debug.LogWarning($"[ShipData] TryExtendZone failed: deck {deckLevel} not found.");
+                return false;
+            }
+
+            DeckZoneIndex deckZoneIndex = GetOrCreateDeckZoneIndex(deckLevel);
+            HashSet<Vector2Int> uniqueTiles = new HashSet<Vector2Int>();
+            List<TileCoord> newTiles = new List<TileCoord>();
+
+            foreach (Vector2Int pos in tilePositions)
+            {
+                if (!uniqueTiles.Add(pos))
+                    continue;
+
+                int x = pos.x;
+                int z = pos.y;
+
+                if (!deck.IsValidPosition(x, z) || !deck.IsActiveTile(x, z))
+                {
+                    Debug.LogWarning($"[ShipData] TryExtendZone failed: tile ({x}, {z}) on deck {deckLevel} is invalid or inactive.");
+                    return false;
+                }
+
+                TileCoord coord = new TileCoord(deckLevel, x, z);
+
+                if (targetZone.Tiles.Contains(coord))
+                    continue;
+
+                if (deckZoneIndex.TryGetZone(coord, out ZoneId otherZone) && otherZone.IsValid && otherZone != zoneId)
+                {
+                    Debug.LogWarning($"[ShipData] TryExtendZone failed: tile ({x}, {z}) already belongs to zone {otherZone.Value}.");
+                    return false;
+                }
+
+                newTiles.Add(coord);
+            }
+
+            if (newTiles.Count == 0)
+            {
+                Debug.LogWarning("[ShipData] TryExtendZone aborted: no new tiles to add.");
+                return false;
+            }
+
+            using IDisposable editScope = BeginSpatialEdit($"ExtendZone:{zoneId.Value}");
+
+            foreach (TileCoord coord in newTiles)
+            {
+                targetZone.Tiles.Add(coord);
+                deckZoneIndex.SetZone(coord, zoneId);
+            }
+
+            UpdateZoneBounds(targetZone);
+            MarkDeckDirty(deckLevel);
+            RebuildZoneAdjacency(targetZone);
+            RaiseZoneChanged(zoneId, targetZone, ShipChangeType.Updated);
+            PortalDistanceCache.Clear();
+
+            zone = targetZone;
+            return true;
+        }
+
         public IEnumerable<RoomData> GetRoomsOnDeck(int deckLevel)
         {
             foreach (RoomData room in ZoneRooms.Values)
@@ -1031,6 +1120,34 @@ namespace CruiseLineInc.Ship
                 return;
 
             PortalsChanged?.Invoke();
+        }
+
+        private static void UpdateZoneBounds(ZoneData zone)
+        {
+            if (zone == null || zone.Tiles.Count == 0)
+                return;
+
+            int minX = int.MaxValue;
+            int maxX = int.MinValue;
+            int minZ = int.MaxValue;
+            int maxZ = int.MinValue;
+
+            foreach (TileCoord coord in zone.Tiles)
+            {
+                if (coord.Deck != zone.Deck)
+                    continue;
+
+                if (coord.X < minX) minX = coord.X;
+                if (coord.X > maxX) maxX = coord.X;
+                if (coord.Z < minZ) minZ = coord.Z;
+                if (coord.Z > maxZ) maxZ = coord.Z;
+            }
+
+            if (minX == int.MaxValue || minZ == int.MaxValue)
+                return;
+
+            zone.Origin = new Vector3Int(minX, zone.Deck, minZ);
+            zone.Size = new Vector2Int(Mathf.Max(1, maxX - minX + 1), Mathf.Max(1, maxZ - minZ + 1));
         }
 
         private void RemoveZoneAdjacencyLinks(ZoneData zone, bool updateGraph)

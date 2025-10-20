@@ -58,6 +58,9 @@ namespace CruiseLineInc.Ship3D
         private bool _isDragging;
         private int _activeDeckLevel;
         private Vector2Int _startTile;
+        private bool _isExtending;
+        private ZoneId _targetZoneId = ZoneId.Invalid;
+        private ZoneData _targetZone;
 
         private readonly List<Vector3Int> _previewTiles = new List<Vector3Int>();
         private ShipData CurrentShipData => _shipManager != null ? _shipManager.GetCurrentShipData() : null;
@@ -180,6 +183,19 @@ namespace CruiseLineInc.Ship3D
             _isDragging = true;
             _activeDeckLevel = deckLevel;
             _startTile = new Vector2Int(x, z);
+
+            _isExtending = false;
+            _targetZoneId = ZoneId.Invalid;
+            _targetZone = null;
+
+            ShipData shipData = CurrentShipData;
+            if (shipData != null && shipData.TryGetZoneAtPosition(deckLevel, x, z, out ZoneData zone))
+            {
+                _isExtending = true;
+                _targetZoneId = zone.Id;
+                _targetZone = zone;
+            }
+
             UpdatePreview(x, z);
         }
 
@@ -191,14 +207,21 @@ namespace CruiseLineInc.Ship3D
             int maxX = Mathf.Max(_startTile.x, currentX);
             int minZ = Mathf.Min(_startTile.y, currentZ);
             int maxZ = Mathf.Max(_startTile.y, currentZ);
+            HashSet<TileCoord> existingTiles = _isExtending && _targetZone != null ? _targetZone.Tiles : null;
 
             for (int x = minX; x <= maxX; x++)
             {
                 for (int z = minZ; z <= maxZ; z++)
                 {
-                    Vector3Int tile = new Vector3Int(x, _activeDeckLevel, z);
-                    _previewTiles.Add(tile);
-                    _shipView.SetTileHighlighted(_activeDeckLevel, x, z, true);
+                    TileCoord coord = new TileCoord(_activeDeckLevel, x, z);
+                    bool alreadyInZone = existingTiles != null && existingTiles.Contains(coord);
+
+                    if (!_isExtending || !alreadyInZone)
+                    {
+                        Vector3Int tile = new Vector3Int(x, _activeDeckLevel, z);
+                        _previewTiles.Add(tile);
+                        _shipView.SetTileHighlighted(_activeDeckLevel, x, z, true);
+                    }
                 }
             }
         }
@@ -207,8 +230,6 @@ namespace CruiseLineInc.Ship3D
         {
             if (!_isDragging)
                 return;
-
-            _isDragging = false;
 
             ShipData shipData = CurrentShipData;
             if (shipData == null)
@@ -224,37 +245,47 @@ namespace CruiseLineInc.Ship3D
                 return;
             }
 
-            ZonePaintProfile profile = _profiles[Mathf.Clamp(_activeProfileIndex, 0, _profiles.Length - 1)];
-
             List<Vector2Int> footprint = new List<Vector2Int>(_previewTiles.Count);
             foreach (Vector3Int tile in _previewTiles)
             {
                 footprint.Add(new Vector2Int(tile.x, tile.z));
             }
 
-            ConnectorType? connector = profile.AssignConnector ? profile.ConnectorType : (ConnectorType?)null;
-
-            if (!shipData.TryPaintZone(
-                    profile.FunctionType,
-                    _activeDeckLevel,
-                    footprint,
-                    out ZoneData _,
-                    profile.IsOperational,
-                    isDefaultPlacement: false,
-                    profile.IsDeletable,
-                    connector,
-                    profile.BlueprintId))
+            if (_isExtending && _targetZoneId.IsValid)
             {
-                Debug.LogWarning("[ZonePaintTool] Zone paint failed validation.");
+                if (!shipData.TryExtendZone(_targetZoneId, footprint, out _))
+                {
+                    Debug.LogWarning("[ZonePaintTool] Zone extension failed validation.");
+                }
+            }
+            else
+            {
+                ZonePaintProfile profile = _profiles[Mathf.Clamp(_activeProfileIndex, 0, _profiles.Length - 1)];
+                ConnectorType? connector = profile.AssignConnector ? profile.ConnectorType : (ConnectorType?)null;
+
+                if (!shipData.TryPaintZone(
+                        profile.FunctionType,
+                        _activeDeckLevel,
+                        footprint,
+                        out ZoneData _,
+                        profile.IsOperational,
+                        isDefaultPlacement: false,
+                        profile.IsDeletable,
+                        connector,
+                        profile.BlueprintId))
+                {
+                    Debug.LogWarning("[ZonePaintTool] Zone paint failed validation.");
+                }
             }
 
             ClearPreview();
+            ResetPaintState();
         }
 
         private void CancelPaint()
         {
-            _isDragging = false;
             ClearPreview();
+            ResetPaintState();
         }
 
         private void ClearPreview()
@@ -268,6 +299,14 @@ namespace CruiseLineInc.Ship3D
             }
 
             _previewTiles.Clear();
+        }
+
+        private void ResetPaintState()
+        {
+            _isDragging = false;
+            _isExtending = false;
+            _targetZoneId = ZoneId.Invalid;
+            _targetZone = null;
         }
 
         private bool TryGetTileUnderCursor(out int deckLevel, out int x, out int z)
