@@ -583,6 +583,101 @@ namespace CruiseLineInc.Ship
             return zone;
         }
 
+        public bool TryPaintZone(
+            ZoneFunctionType functionType,
+            int deckLevel,
+            IEnumerable<Vector2Int> tilePositions,
+            out ZoneData zone,
+            bool isOperational = true,
+            bool isDefaultPlacement = false,
+            bool isDeletable = true,
+            ConnectorType? connector = null,
+            string blueprintId = null)
+        {
+            zone = null;
+
+            if (tilePositions == null)
+            {
+                Debug.LogWarning("[ShipData] TryPaintZone failed: tilePositions is null.");
+                return false;
+            }
+
+            Deck deck = GetDeck(deckLevel);
+            if (deck == null)
+            {
+                Debug.LogWarning($"[ShipData] TryPaintZone failed: deck {deckLevel} not found.");
+                return false;
+            }
+
+            HashSet<Vector2Int> uniqueTiles = new HashSet<Vector2Int>();
+            List<TileCoord> tileCoords = new List<TileCoord>();
+            int minX = int.MaxValue;
+            int maxX = int.MinValue;
+            int minZ = int.MaxValue;
+            int maxZ = int.MinValue;
+            DeckZoneIndex deckZoneIndex = GetOrCreateDeckZoneIndex(deckLevel);
+
+            foreach (Vector2Int pos in tilePositions)
+            {
+                if (!uniqueTiles.Add(pos))
+                    continue;
+
+                int x = pos.x;
+                int z = pos.y;
+
+                if (!deck.IsValidPosition(x, z) || !deck.IsActiveTile(x, z))
+                {
+                    Debug.LogWarning($"[ShipData] TryPaintZone failed: tile ({x}, {z}) on deck {deckLevel} is invalid or inactive.");
+                    return false;
+                }
+
+                TileCoord coord = new TileCoord(deckLevel, x, z);
+                if (deckZoneIndex.TryGetZone(coord, out ZoneId existingZone) && existingZone.IsValid)
+                {
+                    Debug.LogWarning($"[ShipData] TryPaintZone failed: tile ({x}, {z}) on deck {deckLevel} already belongs to zone {existingZone.Value}.");
+                    return false;
+                }
+
+                tileCoords.Add(coord);
+
+                if (x < minX) minX = x;
+                if (x > maxX) maxX = x;
+                if (z < minZ) minZ = z;
+                if (z > maxZ) maxZ = z;
+            }
+
+            if (tileCoords.Count == 0)
+            {
+                Debug.LogWarning("[ShipData] TryPaintZone failed: no tiles provided.");
+                return false;
+            }
+
+            using IDisposable editScope = BeginSpatialEdit($"PaintZone:{functionType}");
+
+            ZoneData createdZone = CreateZone(functionType, deckLevel);
+            createdZone.IsOperational = isOperational;
+            createdZone.IsDefaultPlacement = isDefaultPlacement;
+            createdZone.IsDeletable = isDeletable;
+            createdZone.Connector = connector;
+            createdZone.ZoneBlueprintId = blueprintId;
+            createdZone.Origin = new Vector3Int(minX, deckLevel, minZ);
+            createdZone.Size = new Vector2Int(maxX - minX + 1, maxZ - minZ + 1);
+
+            foreach (TileCoord coord in tileCoords)
+            {
+                createdZone.Tiles.Add(coord);
+                deckZoneIndex.SetZone(coord, createdZone.Id);
+            }
+
+            MarkDeckDirty(deckLevel);
+            RebuildZoneAdjacency(createdZone);
+            RaiseZoneChanged(createdZone.Id, createdZone, ShipChangeType.Created);
+            PortalDistanceCache.Clear();
+
+            zone = createdZone;
+            return true;
+        }
+
         public IEnumerable<RoomData> GetRoomsOnDeck(int deckLevel)
         {
             foreach (RoomData room in ZoneRooms.Values)
