@@ -46,6 +46,14 @@ namespace CruiseLineInc.Ship
         public PortalDistanceCache PortalDistanceCache { get; } = new PortalDistanceCache();
         public List<ShipEditMemento> CommandLog { get; } = new List<ShipEditMemento>();
 
+        private static readonly Vector2Int[] TileNeighbourOffsets =
+        {
+            new Vector2Int(1, 0),
+            new Vector2Int(-1, 0),
+            new Vector2Int(0, 1),
+            new Vector2Int(0, -1)
+        };
+
         private int _nextZoneId = 1;
         private int _nextRoomId = 1;
         private int _nextFurnitureNodeId = 1;
@@ -257,6 +265,8 @@ namespace CruiseLineInc.Ship
                     }
                 }
             }
+
+            RebuildZoneAdjacency(zone);
         }
 
         private void ReleaseRoomTiles(RoomData room)
@@ -293,6 +303,8 @@ namespace CruiseLineInc.Ship
                 {
                     zone.Tiles.Remove(coord);
                 }
+
+                RebuildZoneAdjacency(zone);
             }
 
             room.Tiles.Clear();
@@ -356,6 +368,7 @@ namespace CruiseLineInc.Ship
                 }
             }
 
+            RebuildZoneAdjacency(zone);
             RaiseZoneChanged(zone.Id, zone);
             PortalDistanceCache.Clear();
 
@@ -503,8 +516,9 @@ namespace CruiseLineInc.Ship
                 RemoveRoom(childRoom);
             }
 
+            RemoveZoneAdjacencyLinks(zone, true);
+
             Zones.Remove(id);
-            ZoneGraph.RemoveZone(id);
             foreach (TileCoord coord in zone.Tiles)
             {
                 if (DeckZoneIndices.TryGetValue(coord.Deck, out DeckZoneIndex index))
@@ -683,6 +697,68 @@ namespace CruiseLineInc.Ship
         private void RaiseZoneChanged(ZoneId id, ZoneData zone) => ZoneChanged?.Invoke(id, zone);
         private void RaiseRoomChanged(RoomId id, RoomData room) => RoomChanged?.Invoke(id, room);
         private void RaisePortalsChanged() => PortalsChanged?.Invoke();
+
+        private void RemoveZoneAdjacencyLinks(ZoneData zone, bool updateGraph)
+        {
+            if (zone == null)
+                return;
+
+            ZoneId[] neighbours = zone.AdjacentZones.ToArray();
+            foreach (ZoneId neighbourId in neighbours)
+            {
+                if (neighbourId.IsValid && Zones.TryGetValue(neighbourId, out ZoneData neighbourZone))
+                {
+                    neighbourZone.AdjacentZones.Remove(zone.Id);
+                }
+            }
+
+            zone.AdjacentZones.Clear();
+
+            if (updateGraph)
+            {
+                ZoneGraph.RemoveZone(zone.Id);
+            }
+        }
+
+        private void RebuildZoneAdjacency(ZoneData zone)
+        {
+            if (zone == null)
+                return;
+
+            RemoveZoneAdjacencyLinks(zone, true);
+
+            if (zone.Tiles.Count == 0)
+                return;
+
+            HashSet<ZoneId> processed = new HashSet<ZoneId>();
+
+            foreach (TileCoord coord in zone.Tiles)
+            {
+                foreach (Vector2Int offset in TileNeighbourOffsets)
+                {
+                    TileCoord neighbourCoord = new TileCoord(coord.Deck, coord.X + offset.x, coord.Z + offset.y);
+
+                    if (!DeckZoneIndices.TryGetValue(neighbourCoord.Deck, out DeckZoneIndex deckIndex))
+                        continue;
+
+                    if (!deckIndex.TryGetZone(neighbourCoord, out ZoneId neighbourZoneId))
+                        continue;
+
+                    if (!neighbourZoneId.IsValid || neighbourZoneId == zone.Id)
+                        continue;
+
+                    if (!processed.Add(neighbourZoneId))
+                        continue;
+
+                    if (!Zones.TryGetValue(neighbourZoneId, out ZoneData neighbourZone))
+                        continue;
+
+                    zone.AdjacentZones.Add(neighbourZoneId);
+                    neighbourZone.AdjacentZones.Add(zone.Id);
+                    ZoneGraph.AddEdge(zone.Id, neighbourZoneId);
+                }
+            }
+        }
 
         #endregion
         

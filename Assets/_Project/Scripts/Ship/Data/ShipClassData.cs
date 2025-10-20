@@ -379,6 +379,8 @@ namespace CruiseLineInc.Ship.Data
             lowerSlice.DeckLinks.Add(lowerToUpper);
             upperSlice.DeckLinks.Add(upperToLower);
 
+            lowerSlice.AdjacentZones.Add(upperSlice.Id);
+            upperSlice.AdjacentZones.Add(lowerSlice.Id);
             shipData.ZoneGraph.AddEdge(lowerSlice.Id, upperSlice.Id);
         }
         
@@ -424,5 +426,4 @@ namespace CruiseLineInc.Ship.Data
         }
     }
 }
-
 
