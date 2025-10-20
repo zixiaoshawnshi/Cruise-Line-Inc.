@@ -58,6 +58,7 @@ namespace CruiseLineInc.Ship3D
 
         private readonly Dictionary<int, DeckVisual> _deckVisuals = new();
         private readonly Dictionary<int, float> _deckOffsets = new();
+        private readonly HashSet<int> _decksPendingRefresh = new();
         private ShipData _currentShipData;
 
         private void Awake()
@@ -256,16 +257,81 @@ namespace CruiseLineInc.Ship3D
             }
 
             UnsubscribeFromEvents();
+            _decksPendingRefresh.Clear();
         }
 
         private void SubscribeToEvents()
         {
-            // TODO: hook into ShipData change notifications when available.
+            ShipUpdateDispatcher.Instance.ShipChanged += HandleShipChanged;
         }
 
         private void UnsubscribeFromEvents()
         {
-            // TODO: detach listeners.
+            if (ShipUpdateDispatcher.HasInstance)
+            {
+                ShipUpdateDispatcher.Instance.ShipChanged -= HandleShipChanged;
+            }
+        }
+
+        private void LateUpdate()
+        {
+            ShipUpdateDispatcher.Instance.ProcessPending();
+
+            if (_decksPendingRefresh.Count == 0)
+                return;
+
+            if (_currentShipData == null && _shipManager != null)
+            {
+                _currentShipData = _shipManager.GetCurrentShipData();
+            }
+
+            if (_currentShipData == null)
+                return;
+
+            foreach (int deckLevel in _decksPendingRefresh)
+            {
+                RefreshDeck(deckLevel);
+                _currentShipData.ClearDirtyDeck(deckLevel);
+            }
+
+            _decksPendingRefresh.Clear();
+        }
+
+        private void HandleShipChanged(ShipChangeEventArgs args)
+        {
+            if (args == null || !args.HasChanges)
+                return;
+
+            if (_currentShipData == null && _shipManager != null)
+            {
+                _currentShipData = _shipManager.GetCurrentShipData();
+            }
+
+            if (args.DirtyDecks.Count > 0)
+            {
+                foreach (int deck in args.DirtyDecks)
+                {
+                    _decksPendingRefresh.Add(deck);
+                }
+            }
+            else if (_currentShipData != null)
+            {
+                foreach (ZoneId zoneId in args.CreatedZones)
+                {
+                    if (_currentShipData.TryGetZone(zoneId, out ZoneData zone))
+                    {
+                        _decksPendingRefresh.Add(zone.Deck);
+                    }
+                }
+
+                foreach (ZoneId zoneId in args.UpdatedZones)
+                {
+                    if (_currentShipData.TryGetZone(zoneId, out ZoneData zone))
+                    {
+                        _decksPendingRefresh.Add(zone.Deck);
+                    }
+                }
+            }
         }
 
         private void ComputeDeckOffsets(IEnumerable<Deck> decks)

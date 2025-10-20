@@ -78,5 +78,10 @@ namespace CruiseLineInc.Ship
         public Deck GetDeck(int deckLevel) => _currentShipData?.GetDeck(deckLevel);
         public ShipTile GetTile(int x, int z, int deckLevel) => _currentShipData?.GetTile(x, z, deckLevel);
         public ShipTile GetTile(int x, int deckLevel) => _currentShipData?.GetTile(x, deckLevel);
+
+        private void LateUpdate()
+        {
+            ShipUpdateDispatcher.Instance.ProcessPending();
+        }
     }
 }

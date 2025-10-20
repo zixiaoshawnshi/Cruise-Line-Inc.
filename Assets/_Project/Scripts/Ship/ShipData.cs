@@ -45,7 +45,12 @@ namespace CruiseLineInc.Ship
         public ZoneGraphData ZoneGraph { get; } = new ZoneGraphData();
         public PortalDistanceCache PortalDistanceCache { get; } = new PortalDistanceCache();
         public List<ShipEditMemento> CommandLog { get; } = new List<ShipEditMemento>();
+        public event Action<ShipChangeEventArgs> ShipChanged;
 
+        private readonly HashSet<int> _dirtyDeckLevels = new HashSet<int>();
+        private ShipChangeSet _pendingChanges;
+        private int _spatialEditNesting;
+        private string _activeEditReason;
         private static readonly Vector2Int[] TileNeighbourOffsets =
         {
             new Vector2Int(1, 0),
@@ -131,6 +136,200 @@ namespace CruiseLineInc.Ship
             return allTiles;
         }
         
+        public IReadOnlyCollection<int> DirtyDeckLevels => _dirtyDeckLevels;
+        public bool IsDeckDirty(int deckLevel) => _dirtyDeckLevels.Contains(deckLevel);
+        public void ClearDirtyDeck(int deckLevel) => _dirtyDeckLevels.Remove(deckLevel);
+        public void ClearAllDirtyDecks() => _dirtyDeckLevels.Clear();
+
+        public IDisposable BeginSpatialEdit(string reason = null)
+        {
+            EnterSpatialEditScope(reason);
+            return new ShipSpatialEditScope(this);
+        }
+
+        private void EnterSpatialEditScope(string reason)
+        {
+            if (_spatialEditNesting == 0 && !string.IsNullOrEmpty(reason))
+            {
+                _activeEditReason = reason;
+            }
+
+            _spatialEditNesting++;
+        }
+
+        private void ExitSpatialEditScope()
+        {
+            if (_spatialEditNesting == 0)
+                return;
+
+            _spatialEditNesting--;
+            if (_spatialEditNesting > 0)
+                return;
+
+            FlushPendingChanges(isBatch: true, _activeEditReason);
+            _activeEditReason = null;
+            _pendingChanges?.Clear();
+        }
+
+        private ShipChangeSet EnsurePendingChanges()
+        {
+            return _pendingChanges ??= new ShipChangeSet();
+        }
+
+        private void MarkDeckDirty(int deckLevel)
+        {
+            _dirtyDeckLevels.Add(deckLevel);
+            ShipChangeSet changes = EnsurePendingChanges();
+            changes.DirtyDecks.Add(deckLevel);
+
+            if (_spatialEditNesting == 0)
+            {
+                FlushPendingChanges(isBatch: false, reasonOverride: null);
+                _pendingChanges?.Clear();
+            }
+        }
+
+        private void MarkZoneChange(ZoneId zoneId, ShipChangeType changeType)
+        {
+            if (!zoneId.IsValid)
+                return;
+
+            ShipChangeSet changes = EnsurePendingChanges();
+            switch (changeType)
+            {
+                case ShipChangeType.Created:
+                    changes.RemovedZones.Remove(zoneId);
+                    changes.UpdatedZones.Remove(zoneId);
+                    changes.CreatedZones.Add(zoneId);
+                    break;
+                case ShipChangeType.Updated:
+                    if (!changes.CreatedZones.Contains(zoneId))
+                    {
+                        changes.UpdatedZones.Add(zoneId);
+                    }
+                    break;
+                case ShipChangeType.Removed:
+                    changes.CreatedZones.Remove(zoneId);
+                    changes.UpdatedZones.Remove(zoneId);
+                    changes.RemovedZones.Add(zoneId);
+                    break;
+            }
+
+            if (_spatialEditNesting == 0)
+            {
+                FlushPendingChanges(isBatch: false, reasonOverride: null);
+                _pendingChanges?.Clear();
+            }
+        }
+
+        private void MarkRoomChange(RoomId roomId, ShipChangeType changeType)
+        {
+            if (!roomId.IsValid)
+                return;
+
+            ShipChangeSet changes = EnsurePendingChanges();
+            switch (changeType)
+            {
+                case ShipChangeType.Created:
+                    changes.RemovedRooms.Remove(roomId);
+                    changes.UpdatedRooms.Remove(roomId);
+                    changes.CreatedRooms.Add(roomId);
+                    break;
+                case ShipChangeType.Updated:
+                    if (!changes.CreatedRooms.Contains(roomId))
+                    {
+                        changes.UpdatedRooms.Add(roomId);
+                    }
+                    break;
+                case ShipChangeType.Removed:
+                    changes.CreatedRooms.Remove(roomId);
+                    changes.UpdatedRooms.Remove(roomId);
+                    changes.RemovedRooms.Add(roomId);
+                    break;
+            }
+
+            if (_spatialEditNesting == 0)
+            {
+                FlushPendingChanges(isBatch: false, reasonOverride: null);
+                _pendingChanges?.Clear();
+            }
+        }
+
+        private void FlushPendingChanges(bool isBatch, string reasonOverride)
+        {
+            if (_pendingChanges == null || !_pendingChanges.HasChanges)
+                return;
+
+            ShipChangeEventArgs args = _pendingChanges.ToEventArgs(reasonOverride, isBatch);
+            ShipChanged?.Invoke(args);
+            ShipUpdateDispatcher.Instance.Enqueue(args);
+        }
+
+        private sealed class ShipSpatialEditScope : IDisposable
+        {
+            private readonly ShipData _owner;
+            private bool _disposed;
+
+            public ShipSpatialEditScope(ShipData owner)
+            {
+                _owner = owner;
+            }
+
+            public void Dispose()
+            {
+                if (_disposed)
+                    return;
+
+                _disposed = true;
+                _owner.ExitSpatialEditScope();
+            }
+        }
+
+        private sealed class ShipChangeSet
+        {
+            public HashSet<int> DirtyDecks { get; } = new HashSet<int>();
+            public HashSet<ZoneId> CreatedZones { get; } = new HashSet<ZoneId>();
+            public HashSet<ZoneId> UpdatedZones { get; } = new HashSet<ZoneId>();
+            public HashSet<ZoneId> RemovedZones { get; } = new HashSet<ZoneId>();
+            public HashSet<RoomId> CreatedRooms { get; } = new HashSet<RoomId>();
+            public HashSet<RoomId> UpdatedRooms { get; } = new HashSet<RoomId>();
+            public HashSet<RoomId> RemovedRooms { get; } = new HashSet<RoomId>();
+
+            public bool HasChanges =>
+                DirtyDecks.Count > 0 ||
+                CreatedZones.Count > 0 ||
+                UpdatedZones.Count > 0 ||
+                RemovedZones.Count > 0 ||
+                CreatedRooms.Count > 0 ||
+                UpdatedRooms.Count > 0 ||
+                RemovedRooms.Count > 0;
+
+            public ShipChangeEventArgs ToEventArgs(string reason, bool isBatch)
+            {
+                return new ShipChangeEventArgs(
+                    reason,
+                    DirtyDecks,
+                    CreatedZones,
+                    UpdatedZones,
+                    RemovedZones,
+                    CreatedRooms,
+                    UpdatedRooms,
+                    RemovedRooms,
+                    isBatch);
+            }
+
+            public void Clear()
+            {
+                DirtyDecks.Clear();
+                CreatedZones.Clear();
+                UpdatedZones.Clear();
+                RemovedZones.Clear();
+                CreatedRooms.Clear();
+                UpdatedRooms.Clear();
+                RemovedRooms.Clear();
+            }
+        }
+
         #endregion
         
         #region Room Placement
@@ -199,6 +398,8 @@ namespace CruiseLineInc.Ship
                 return null;
             }
 
+            using IDisposable editScope = BeginSpatialEdit($"CreateRoom:{roomDefinition.RoomId ?? roomDefinition.DisplayName}");
+
             ZoneData zone = CreateZone(roomDefinition.ZoneFunction, deckLevel);
             zone.IsOperational = isOperational;
             zone.ZoneBlueprintId = roomDefinition.RoomId;
@@ -228,8 +429,8 @@ namespace CruiseLineInc.Ship
 
             OccupyRoomTiles(zone, room);
 
-            RaiseRoomChanged(room.Id, room);
-            RaiseZoneChanged(zone.Id, zone);
+            RaiseRoomChanged(room.Id, room, ShipChangeType.Created);
+            RaiseZoneChanged(zone.Id, zone, ShipChangeType.Created);
             PortalDistanceCache.Clear();
 
             return room;
@@ -264,6 +465,8 @@ namespace CruiseLineInc.Ship
                         index.SetRoom(coord, room.Id);
                     }
                 }
+
+                MarkDeckDirty(deckLevel);
             }
 
             RebuildZoneAdjacency(zone);
@@ -295,6 +498,8 @@ namespace CruiseLineInc.Ship
                         }
                     }
                 }
+
+                MarkDeckDirty(deckLevel);
             }
 
             if (Zones.TryGetValue(room.ZoneId, out ZoneData zone))
@@ -347,6 +552,8 @@ namespace CruiseLineInc.Ship
                 }
             }
 
+            using IDisposable editScope = BeginSpatialEdit($"CreateZone:{functionType}");
+
             ZoneData zone = CreateZone(functionType, deckLevel);
             zone.IsOperational = isOperational;
             zone.IsDefaultPlacement = isDefaultPlacement;
@@ -368,8 +575,9 @@ namespace CruiseLineInc.Ship
                 }
             }
 
+            MarkDeckDirty(deckLevel);
             RebuildZoneAdjacency(zone);
-            RaiseZoneChanged(zone.Id, zone);
+            RaiseZoneChanged(zone.Id, zone, ShipChangeType.Created);
             PortalDistanceCache.Clear();
 
             return zone;
@@ -510,6 +718,8 @@ namespace CruiseLineInc.Ship
             if (!Zones.TryGetValue(id, out ZoneData zone))
                 return false;
 
+            using IDisposable editScope = BeginSpatialEdit($"RemoveZone:{id.Value}");
+
             RoomId[] childRooms = zone.Rooms.ToArray();
             foreach (RoomId childRoom in childRooms)
             {
@@ -525,9 +735,10 @@ namespace CruiseLineInc.Ship
                 {
                     index.RemoveZone(coord);
                 }
+                MarkDeckDirty(coord.Deck);
             }
 
-            RaiseZoneChanged(id, zone);
+            RaiseZoneChanged(id, zone, ShipChangeType.Removed);
             PortalDistanceCache.Clear();
             return true;
         }
@@ -562,7 +773,10 @@ namespace CruiseLineInc.Ship
             if (!ZoneRooms.TryGetValue(id, out RoomData room))
                 return false;
 
-            if (Zones.TryGetValue(room.ZoneId, out ZoneData zone))
+            using IDisposable editScope = BeginSpatialEdit($"RemoveRoom:{id.Value}");
+
+            ZoneId owningZone = room.ZoneId;
+            if (Zones.TryGetValue(owningZone, out ZoneData zone))
             {
                 zone.Rooms.Remove(id);
             }
@@ -570,10 +784,10 @@ namespace CruiseLineInc.Ship
             ReleaseRoomTiles(room);
 
             ZoneRooms.Remove(id);
-            RaiseRoomChanged(id, room);
+            RaiseRoomChanged(id, room, ShipChangeType.Removed);
             if (zone != null)
             {
-                RaiseZoneChanged(room.ZoneId, zone);
+                RaiseZoneChanged(owningZone, zone);
             }
             PortalDistanceCache.Clear();
             return true;
@@ -603,6 +817,8 @@ namespace CruiseLineInc.Ship
 
         public ZonePortal RegisterPortal(ZoneId ownerZone, ZoneId corridorZone, TileCoord entryCoord)
         {
+            using IDisposable editScope = BeginSpatialEdit($"RegisterPortal:{ownerZone.Value}");
+
             PortalId portalId = AllocatePortalId();
             ZonePortal portal = new ZonePortal
             {
@@ -630,6 +846,8 @@ namespace CruiseLineInc.Ship
         {
             if (!ZonePortals.TryGetValue(portalId, out ZonePortal portal))
                 return false;
+
+            using IDisposable editScope = BeginSpatialEdit($"RemovePortal:{portalId.Value}");
 
             ZonePortals.Remove(portalId);
 
@@ -694,9 +912,31 @@ namespace CruiseLineInc.Ship
             return true;
         }
 
-        private void RaiseZoneChanged(ZoneId id, ZoneData zone) => ZoneChanged?.Invoke(id, zone);
-        private void RaiseRoomChanged(RoomId id, RoomData room) => RoomChanged?.Invoke(id, room);
-        private void RaisePortalsChanged() => PortalsChanged?.Invoke();
+        private void RaiseZoneChanged(ZoneId id, ZoneData zone, ShipChangeType changeType = ShipChangeType.Updated)
+        {
+            MarkZoneChange(id, changeType);
+            if (_spatialEditNesting > 0)
+                return;
+
+            ZoneChanged?.Invoke(id, zone);
+        }
+
+        private void RaiseRoomChanged(RoomId id, RoomData room, ShipChangeType changeType = ShipChangeType.Updated)
+        {
+            MarkRoomChange(id, changeType);
+            if (_spatialEditNesting > 0)
+                return;
+
+            RoomChanged?.Invoke(id, room);
+        }
+
+        private void RaisePortalsChanged()
+        {
+            if (_spatialEditNesting > 0)
+                return;
+
+            PortalsChanged?.Invoke();
+        }
 
         private void RemoveZoneAdjacencyLinks(ZoneData zone, bool updateGraph)
         {

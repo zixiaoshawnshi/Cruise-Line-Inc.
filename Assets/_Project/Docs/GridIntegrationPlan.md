@@ -131,8 +131,14 @@
    - Batch or instance tile meshes where possible.  
    - Allow hiding/inactivating decks above/below the active focus deck to keep scene light.
 
+## Renderer Refresh Flow
+- `ShipData` raises a coarse `ShipChanged` notification once per edit scope. Payload carries change type (create/update/delete), affected zone/room ids, and a deck dirty set so renderers can batch refresh work.
+- Low-level notifications (`ZoneChanged`, `RoomChanged`, `PortalsChanged`) still fire, but are suppressed while a `ShipSpatialEditScope` is active. The scope ends with a single aggregated `ShipChanged`.
+- A lightweight `ShipUpdateDispatcher` queues change messages on the main thread and fans them out to subscribers (`ShipView3D`, tooling, future AI observers). This keeps ShipData decoupled from Unity update order and allows batching/deferral if edits arrive off-thread later.
+- Deck-level dirty flags live inside `ShipData`; renderers query them to decide which decks to repaint. Decks above/below the active focus can stay dormant until they become visible.
+- `ShipView3D` and interaction controllers subscribe to the dispatcher and consume the aggregated change payload, enabling future overlays (ghost previews, heatmaps) to hook in without tight coupling.
+
 ## Open Items
-- Define how and when ShipData mutations trigger renderer refresh (events vs. manual calls).  
 - Decide on furniture data storage; current plan is to introduce a new data layer before visuals depend on it.  
 - Establish undo/redo story once grid interaction tooling is in place.  
 - Lock down zone/room data schemas, archetype definitions, and migration path from access-based zones.  

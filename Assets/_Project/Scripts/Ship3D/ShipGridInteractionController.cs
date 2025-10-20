@@ -1,4 +1,5 @@
-using UnityEngine;
+using CruiseLineInc.Ship;
+using CruiseLineInc.Ship.Data;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
@@ -44,8 +45,18 @@ namespace CruiseLineInc.Ship3D
             }
         }
 
+        private void OnEnable()
+        {
+            ShipUpdateDispatcher.Instance.ShipChanged += HandleShipChanged;
+        }
+
         private void OnDisable()
         {
+            if (ShipUpdateDispatcher.HasInstance)
+            {
+                ShipUpdateDispatcher.Instance.ShipChanged -= HandleShipChanged;
+            }
+
             ClearHighlight();
         }
 
@@ -117,6 +128,21 @@ namespace CruiseLineInc.Ship3D
             _highlightDeck = int.MinValue;
             _highlightX = -1;
             _highlightZ = -1;
+        }
+
+        private void HandleShipChanged(ShipChangeEventArgs args)
+        {
+            if (!_hasHighlight || args == null)
+                return;
+
+            foreach (int deck in args.DirtyDecks)
+            {
+                if (deck == _highlightDeck)
+                {
+                    ClearHighlight();
+                    return;
+                }
+            }
         }
     }
 }
