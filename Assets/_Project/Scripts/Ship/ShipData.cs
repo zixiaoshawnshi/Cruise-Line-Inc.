@@ -901,6 +901,9 @@ namespace CruiseLineInc.Ship
         {
             if (!Zones.TryGetValue(id, out ZoneData zone))
                 return false;
+            
+            if (!zone.IsDeletable)
+                return false;
 
             using IDisposable editScope = BeginSpatialEdit($"RemoveZone:{id.Value}");
 

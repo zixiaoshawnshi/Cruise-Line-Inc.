@@ -94,7 +94,7 @@ MonoBehaviour:
     _length: 2
     _height: 1
     _isOperational: 1
-    _isDeletable: 0
+    _isDeletable: 1
     _verticalTraversalCost: 0
     _verticalCapacity: 0
   - _functionType: 12

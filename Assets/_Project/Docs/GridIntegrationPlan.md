@@ -36,14 +36,14 @@
   - Rooms assemble from kit-of-parts prefabs sized to their footprint; corridor spawning follows adjacency rules.  
   - Furnishing spawn points derive from tile metadata (wall, center, corner) to reduce manual hook setup.
 - **Implementation Notes**  
-  - Prototype zone authoring UI changes (brushes, selection, validation feedback).  
-  - Define initial `ZoneData`/`RoomData` structs and integration into save/load.  
-  - Update build pipelines and ShipView layers to react to zone/room events before introducing AI behaviours.  
-  - Document which existing prefabs convert into modular kits versus data-only props.  
-  - New scaffolding types (`ShipIdentifiers`, `ShipSpatialData`, `ShipEditCommands`) provide ids, data containers, and command hooks—wire gameplay logic against these as features land.  
-  - Default ship content now seeds `ZoneData`/`RoomData` directly via `CreateRoomFromDefinition`, removing the legacy `Room.Room` layer entirely.
-  - Deck offsets are recorded per deck so multi-level rooms/zones align in ship-space even when deck footprints differ.
-  - Ship class data supports `DefaultZonePlacement` entries so exits/elevators/engine connectors can be authored as pure zones via `CreateZoneArea`.
+  - ✅ Prototype zone authoring UI changes (brushes, selection, validation feedback).  
+  - ✅ Define initial `ZoneData`/`RoomData` structs and integration into save/load.  
+  - ✅ Update build pipelines and ShipView layers to react to zone/room events before introducing AI behaviours.  
+  - ☐ Document which existing prefabs convert into modular kits versus data-only props.  
+  - ✅ New scaffolding types (`ShipIdentifiers`, `ShipSpatialData`, `ShipEditCommands`) provide ids, data containers, and command hooks—wire gameplay logic against these as features land.  
+  - ✅ Default ship content now seeds `ZoneData`/`RoomData` directly via `CreateRoomFromDefinition`, removing the legacy `Room.Room` layer entirely.
+  - ✅ Deck offsets are recorded per deck so multi-level rooms/zones align in ship-space even when deck footprints differ.
+  - ✅ Ship class data supports `DefaultZonePlacement` entries so exits/elevators/engine connectors can be authored as pure zones via `CreateZoneArea`.
 - **Versioning and State Flow**  
   - Maintain a lightweight memento/command log for zone/room edits so undo/redo and save checkpoints capture the exact operation (brush stroke, door move) rather than raw data blobs.  
   - Store schema version in `ShipData`; on load run migration steps (e.g. legacy `AccessTag` -> new connector/functional zones) before snapshots are replayed.
@@ -139,10 +139,10 @@
 - `ShipView3D` and interaction controllers subscribe to the dispatcher and consume the aggregated change payload, enabling future overlays (ghost previews, heatmaps) to hook in without tight coupling.
 
 ## Open Items
-- Decide on furniture data storage; current plan is to introduce a new data layer before visuals depend on it.  
-- Establish undo/redo story once grid interaction tooling is in place.  
-- Lock down zone/room data schemas, archetype definitions, and migration path from access-based zones.  
-- Outline AI task routing requirements so hierarchical pathfinding can be validated early.  
-- Evaluate tooling scope for procedural room generation versus manual prefab placement per zone type.
+- ☐ Decide on furniture data storage; current plan is to introduce a new data layer before visuals depend on it.  
+- ☐ Establish undo/redo story once grid interaction tooling is in place.  
+- ☐ Lock down zone/room data schemas, archetype definitions, and migration path from access-based zones.  
+- ☐ Outline AI task routing requirements so hierarchical pathfinding can be validated early.  
+- ☐ Evaluate tooling scope for procedural room generation versus manual prefab placement per zone type.
 
 Keep this document lightweight—update it as systems evolve so the team has a quick reference to current grid/view architecture decisions.

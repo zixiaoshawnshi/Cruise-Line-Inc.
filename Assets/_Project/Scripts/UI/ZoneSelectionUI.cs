@@ -120,6 +120,7 @@ namespace CruiseLineInc.UI
 
             HighlightZone(zone);
             UpdateInfo(zone);
+            _deleteButton.interactable = zone.IsDeletable;
             _selectedZoneId = zone.Id;
             return true;
         }
