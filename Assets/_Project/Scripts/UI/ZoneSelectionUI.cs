@@ -161,10 +161,18 @@ namespace CruiseLineInc.UI
             if (zone == null)
             {
                 _infoLabel.text = "-";
+                if (_deleteButton != null)
+                {
+                    _deleteButton.interactable = false;
+                }
                 return;
             }
 
             _infoLabel.text = $"{zone.FunctionType} (Deck {zone.Deck})\nTiles: {zone.Tiles.Count}";
+            if (_deleteButton != null)
+            {
+                _deleteButton.interactable = zone.IsDeletable;
+            }
         }
 
         private void OnDeletePressed()

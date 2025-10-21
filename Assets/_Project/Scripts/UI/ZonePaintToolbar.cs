@@ -16,6 +16,8 @@ namespace CruiseLineInc.UI
         [SerializeField] private ZonePaintTool _paintTool;
         [SerializeField] private Toggle _paintModeToggle;
         [SerializeField] private TMP_Dropdown _profileDropdown;
+        [SerializeField] private Button _confirmButton;
+        [SerializeField] private Button _cancelButton;
 
         private void Awake()
         {
@@ -23,6 +25,8 @@ namespace CruiseLineInc.UI
             {
                 _paintTool = FindFirstObjectByType<ZonePaintTool>();
             }
+
+            EnsureRuntimeButtons();
 
             if (_paintModeToggle != null)
             {
@@ -32,6 +36,16 @@ namespace CruiseLineInc.UI
             if (_profileDropdown != null)
             {
                 _profileDropdown.onValueChanged.AddListener(OnProfileChanged);
+            }
+
+            if (_confirmButton != null)
+            {
+                _confirmButton.onClick.AddListener(OnConfirmPressed);
+            }
+
+            if (_cancelButton != null)
+            {
+                _cancelButton.onClick.AddListener(OnCancelPressed);
             }
         }
 
@@ -52,6 +66,8 @@ namespace CruiseLineInc.UI
             {
                 _paintModeToggle.isOn = _paintTool.PaintModeEnabled;
             }
+
+            RefreshButtonState();
         }
 
         private void OnDestroy()
@@ -65,6 +81,21 @@ namespace CruiseLineInc.UI
             {
                 _profileDropdown.onValueChanged.RemoveListener(OnProfileChanged);
             }
+
+            if (_confirmButton != null)
+            {
+                _confirmButton.onClick.RemoveListener(OnConfirmPressed);
+            }
+
+            if (_cancelButton != null)
+            {
+                _cancelButton.onClick.RemoveListener(OnCancelPressed);
+            }
+        }
+
+        private void Update()
+        {
+            RefreshButtonState();
         }
 
         private void PopulateProfiles()
@@ -96,6 +127,78 @@ namespace CruiseLineInc.UI
             {
                 _paintTool.SetActiveProfile(index);
             }
+        }
+
+        private void OnConfirmPressed()
+        {
+            _paintTool?.ConfirmPendingPaint();
+        }
+
+        private void OnCancelPressed()
+        {
+            _paintTool?.CancelPendingPaint();
+        }
+
+        private void RefreshButtonState()
+        {
+            bool hasPending = _paintTool != null && _paintTool.HasPendingPaint;
+            if (_confirmButton != null)
+            {
+                _confirmButton.interactable = hasPending;
+            }
+
+            if (_cancelButton != null)
+            {
+                _cancelButton.interactable = hasPending;
+            }
+        }
+
+        private void EnsureRuntimeButtons()
+        {
+            if (_confirmButton == null)
+            {
+                _confirmButton = CreateToolbarButton("ConfirmButton", "Confirm");
+            }
+
+            if (_cancelButton == null)
+            {
+                _cancelButton = CreateToolbarButton("CancelButton", "Cancel");
+            }
+        }
+
+        private Button CreateToolbarButton(string name, string label)
+        {
+            GameObject buttonObj = new GameObject(name, typeof(RectTransform), typeof(CanvasRenderer), typeof(Image), typeof(Button));
+            buttonObj.layer = gameObject.layer;
+            RectTransform rect = buttonObj.GetComponent<RectTransform>();
+            rect.SetParent(transform, false);
+            rect.sizeDelta = new Vector2(160f, 60f);
+
+            Image image = buttonObj.GetComponent<Image>();
+            image.color = new Color(0.85f, 0.85f, 0.85f, 1f);
+
+            Button button = buttonObj.GetComponent<Button>();
+            button.targetGraphic = image;
+
+            GameObject textObj = new GameObject("Label", typeof(RectTransform), typeof(CanvasRenderer), typeof(TextMeshProUGUI));
+            textObj.layer = gameObject.layer;
+            RectTransform textRect = textObj.GetComponent<RectTransform>();
+            textRect.SetParent(rect, false);
+            textRect.anchorMin = Vector2.zero;
+            textRect.anchorMax = Vector2.one;
+            textRect.offsetMin = Vector2.zero;
+            textRect.offsetMax = Vector2.zero;
+
+            TextMeshProUGUI text = textObj.GetComponent<TextMeshProUGUI>();
+            text.text = label;
+            text.alignment = TextAlignmentOptions.Center;
+            text.fontSize = 26f;
+
+            LayoutElement layout = buttonObj.AddComponent<LayoutElement>();
+            layout.minWidth = 150f;
+            layout.minHeight = 60f;
+
+            return button;
         }
     }
 }

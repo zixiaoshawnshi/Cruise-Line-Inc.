@@ -1163,7 +1163,10 @@ namespace CruiseLineInc.Ship
             {
                 if (neighbourId.IsValid && Zones.TryGetValue(neighbourId, out ZoneData neighbourZone))
                 {
-                    neighbourZone.AdjacentZones.Remove(zone.Id);
+                    if (neighbourZone.AdjacentZones.Remove(zone.Id))
+                    {
+                        Debug.Log($"[ShipData] Removed adjacency between zone {zone.Id.Value} and {neighbourId.Value}");
+                    }
                 }
             }
 
@@ -1172,6 +1175,7 @@ namespace CruiseLineInc.Ship
             if (updateGraph)
             {
                 ZoneGraph.RemoveZone(zone.Id);
+                Debug.Log($"[ShipData] Cleared adjacency graph entries for zone {zone.Id.Value}");
             }
         }
 
@@ -1208,9 +1212,13 @@ namespace CruiseLineInc.Ship
                     if (!Zones.TryGetValue(neighbourZoneId, out ZoneData neighbourZone))
                         continue;
 
-                    zone.AdjacentZones.Add(neighbourZoneId);
-                    neighbourZone.AdjacentZones.Add(zone.Id);
+                    bool addedToZone = zone.AdjacentZones.Add(neighbourZoneId);
+                    bool addedToNeighbour = neighbourZone.AdjacentZones.Add(zone.Id);
                     ZoneGraph.AddEdge(zone.Id, neighbourZoneId);
+                    if (addedToZone || addedToNeighbour)
+                    {
+                        Debug.Log($"[ShipData] Added adjacency between zone {zone.Id.Value} and {neighbourZoneId.Value}");
+                    }
                 }
             }
         }
